@@ -34,13 +34,140 @@ fn bit_scan(mut bit: u64) -> usize {
     MOD67TABLE[remainder]
 }
 
-fn main() {
-    let position = 1u64 << 4;
-    println!("position: {}", position);
-    for i in 0..64 {
-        // println!("{}", index_to_position(i));
-        let num = 1u64 << i;
-        println!("{} -> {}", num, bit_scan(num));
+#[derive(Debug, PartialEq, Copy, Clone)]
+enum Colour {
+    White,
+    Black
+}
 
+#[derive(Debug, PartialEq)]
+enum PieceType {
+    Pawn,
+    Bishop,
+    Knight,
+    Rook,
+    Queen,
+    King
+}
+
+#[derive(Debug, PartialEq)]
+struct Piece {
+    position: PiecePosition,
+    colour: Colour,
+    piece_type: PieceType,
+}
+
+#[derive(Debug)]
+enum Square {
+    Empty,
+    Occupied(usize),
+}
+
+struct Game {
+    pieces: Vec<Piece>,
+    squares: Vec<Square>,
+}
+
+impl Game {
+
+    fn push_piece_and_square(&mut self, position: usize, colour: Colour, piece_type: PieceType, index: &mut usize) {
+        self.pieces.push(Piece {
+            position: 1u64 <<  position,
+            colour: colour,
+            piece_type: piece_type,
+        });
+        self.squares.push(Square::Occupied(*index));
+        *index += 1;
     }
+
+    fn push_empty_square(&mut self) {
+        self.squares.push(Square::Empty);
+    }
+    fn initialize() -> Game {
+        let mut game = Game { pieces: vec![], squares: vec![] };
+        let mut piece_index = 0;
+
+        let colour = Colour::White;
+        game.push_piece_and_square(0, colour, PieceType::Rook, &mut piece_index);
+        game.push_piece_and_square(1, colour, PieceType::Knight, &mut piece_index);
+        game.push_piece_and_square(2, colour, PieceType::Bishop, &mut piece_index);
+        game.push_piece_and_square(3, colour, PieceType::Queen, &mut piece_index);
+        game.push_piece_and_square(4, colour, PieceType::King, &mut piece_index);
+        game.push_piece_and_square(5, colour, PieceType::Bishop, &mut piece_index);
+        game.push_piece_and_square(6, colour, PieceType::Knight, &mut piece_index);
+        game.push_piece_and_square(7, colour, PieceType::Rook, &mut piece_index);
+        for i in (8..16) {
+            game.push_piece_and_square(i, colour, PieceType::Pawn, &mut piece_index);
+        }
+
+        for i in (16..48) {
+            game.push_empty_square();
+        }
+
+        let colour = Colour::Black;
+        for i in (48..56) {
+            game.push_piece_and_square(i, colour, PieceType::Pawn, &mut piece_index);
+        }
+        game.push_piece_and_square(56, colour, PieceType::Rook, &mut piece_index);
+        game.push_piece_and_square(57, colour, PieceType::Knight, &mut piece_index);
+        game.push_piece_and_square(58, colour, PieceType::Bishop, &mut piece_index);
+        game.push_piece_and_square(59, colour, PieceType::Queen, &mut piece_index);
+        game.push_piece_and_square(60, colour, PieceType::King, &mut piece_index);
+        game.push_piece_and_square(61, colour, PieceType::Bishop, &mut piece_index);
+        game.push_piece_and_square(62, colour, PieceType::Knight, &mut piece_index);
+        game.push_piece_and_square(63, colour, PieceType::Rook, &mut piece_index);
+
+        game
+    }
+
+    fn to_string(&self) -> String {
+        let mut board = "".to_owned();
+        let mut temp = "".to_owned();
+
+        for (i, square) in self.squares.iter().enumerate() {
+            match square {
+                Square::Empty => temp.push_str(&index_to_position(i)),
+                Square::Occupied(idx) => temp.push_str(&self.pieces[*idx].to_string()),
+            }
+
+            if (i + 1) % 8 == 0 {
+                temp.push_str("\n");
+                board.insert_str(0, &temp);
+                temp.clear();
+            }
+        }
+        board.insert_str(0, &temp);
+
+        board
+    }
+}
+
+impl Piece {
+    fn to_string(&self) -> String {
+        let mut result = match self.piece_type {
+            PieceType::Pawn => "p ",
+            PieceType::Bishop => "b ",
+            PieceType::Knight => "n ",
+            PieceType::Rook => "r ",
+            PieceType::Queen => "q ",
+            PieceType::King => "k ",
+        }.to_string();
+
+        if self.colour == Colour::White {
+            result.make_ascii_uppercase();
+        }
+
+        result
+    }
+}
+
+fn main() {
+    // let pieces = vec![
+    //     Piece { position: 1 << 4, colour: Colour::White, piece_type: PieceType::Pawn },
+    //     Piece { position: 1 << 20, colour: Colour::Black, piece_type: PieceType::Queen },
+    // ];
+    // let squares = vec![Square::Empty, Square::Empty, Square::Occupied(1), Square::Occupied(0)];
+    // let mut game = Game { pieces: pieces, squares: squares };
+    let mut game = Game::initialize();
+    println!("{}", game.to_string());
 }
