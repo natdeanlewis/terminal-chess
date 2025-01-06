@@ -125,8 +125,13 @@ impl Game {
         let mut temp = "".to_owned();
 
         for (i, square) in self.squares.iter().enumerate() {
+
             match square {
-                Square::Empty => temp.push_str(&index_to_position(i)),
+                Square::Empty => {
+                    let tile_string = if i % 2 == (i / 8) % 2 { "□ " } else { "■ " };
+                    temp.push_str(tile_string)
+                },
+                // Square::Empty => temp.push_str(&index_to_position(i)),
                 Square::Occupied(idx) => temp.push_str(&self.pieces[*idx].to_string()),
             }
 
@@ -144,30 +149,31 @@ impl Game {
 
 impl Piece {
     fn to_string(&self) -> String {
-        let mut result = match self.piece_type {
-            PieceType::Pawn => "p ",
-            PieceType::Bishop => "b ",
-            PieceType::Knight => "n ",
-            PieceType::Rook => "r ",
-            PieceType::Queen => "q ",
-            PieceType::King => "k ",
-        }.to_string();
-
         if self.colour == Colour::White {
-            result.make_ascii_uppercase();
-        }
-
+            let mut result = match self.piece_type {
+                PieceType::Pawn => "♟ ",
+                PieceType::Bishop => "♝ ",
+                PieceType::Knight => "♞ ",
+                PieceType::Rook => "♜ ",
+                PieceType::Queen => "♛ ",
+                PieceType::King => "♚ ",
+            }.to_string();
         result
+        } else {
+            let mut result = match self.piece_type {
+                PieceType::Pawn => "♙ ",
+                PieceType::Bishop => "♗ ",
+                PieceType::Knight => "♘ ",
+                PieceType::Rook => "♖ ",
+                PieceType::Queen => "♕ ",
+                PieceType::King => "♔ ",
+            }.to_string();
+        result
+        }
     }
 }
 
 fn main() {
-    // let pieces = vec![
-    //     Piece { position: 1 << 4, colour: Colour::White, piece_type: PieceType::Pawn },
-    //     Piece { position: 1 << 20, colour: Colour::Black, piece_type: PieceType::Queen },
-    // ];
-    // let squares = vec![Square::Empty, Square::Empty, Square::Occupied(1), Square::Occupied(0)];
-    // let mut game = Game { pieces: pieces, squares: squares };
     let mut game = Game::initialize();
     println!("{}", game.to_string());
 }
