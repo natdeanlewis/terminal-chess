@@ -139,20 +139,24 @@ impl Game {
     fn to_string(&self) -> String {
         let mut board = "".to_owned();
         let mut temp = "".to_owned();
-        board.insert_str(0, "  a b c d e f g h ");
+        board.insert_str(0, "   a  b  c  d  e  f  g  h");
         for (i, square) in self.squares.iter().enumerate() {
             if i % 8 == 0 {
                 temp.push_str(((i / 8) + 1).to_string().as_str());
                 temp.push_str(" ");
             }
 
+            let background_colour = if i % 2 == (i / 8) % 2 { "\x1b[42m" } else { "\x1b[47m" };
+            temp.push_str(background_colour);
             match square {
                 Square::Empty => {
-                    let tile_string = if i % 2 == (i / 8) % 2 { "□ " } else { "■ " };
-                    temp.push_str(tile_string)
+
+                    temp.push_str("   ")
                 },
                 Square::Occupied(idx) => temp.push_str(&self.pieces[*idx].to_string()),
             }
+            let colour_end = "\x1b[0m";
+            temp.push_str(colour_end);
 
             if (i + 1) % 8 == 0 {
                 temp.push_str("\n");
@@ -170,22 +174,22 @@ impl Piece {
     fn to_string(&self) -> String {
         if self.colour == Colour::White {
             let mut result = match self.piece_type {
-                PieceType::Pawn => "♟ ",
-                PieceType::Bishop => "♝ ",
-                PieceType::Knight => "♞ ",
-                PieceType::Rook => "♜ ",
-                PieceType::Queen => "♛ ",
-                PieceType::King => "♚ ",
+                PieceType::Pawn => " ♟ ",
+                PieceType::Bishop => " ♝ ",
+                PieceType::Knight => " ♞ ",
+                PieceType::Rook => " ♜ ",
+                PieceType::Queen => " ♛ ",
+                PieceType::King => " ♚ ",
             }.to_string();
         result
         } else {
             let mut result = match self.piece_type {
-                PieceType::Pawn => "♙ ",
-                PieceType::Bishop => "♗ ",
-                PieceType::Knight => "♘ ",
-                PieceType::Rook => "♖ ",
-                PieceType::Queen => "♕ ",
-                PieceType::King => "♔ ",
+                PieceType::Pawn => " ♙ ",
+                PieceType::Bishop => " ♗ ",
+                PieceType::Knight => " ♘ ",
+                PieceType::Rook => " ♖ ",
+                PieceType::Queen => " ♕ ",
+                PieceType::King => " ♔ ",
             }.to_string();
         result
         }
@@ -221,7 +225,6 @@ fn main() {
                             let piece_index = get_piece_index(&game.squares[start_square as usize]);
                             game.squares[start_square as usize] = Square::Empty;
                             game.squares[end_square as usize] = Square::Occupied(piece_index.unwrap());
-                            println!("{:?}", game.squares)
                         }
                     }
                 }
