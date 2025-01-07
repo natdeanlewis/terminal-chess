@@ -123,15 +123,18 @@ impl Game {
     fn to_string(&self) -> String {
         let mut board = "".to_owned();
         let mut temp = "".to_owned();
-
+        board.insert_str(0, "  a b c d e f g h ");
         for (i, square) in self.squares.iter().enumerate() {
+            if i % 8 == 0 {
+                temp.push_str(((i / 8) + 1).to_string().as_str());
+                temp.push_str(" ");
+            }
 
             match square {
                 Square::Empty => {
                     let tile_string = if i % 2 == (i / 8) % 2 { "□ " } else { "■ " };
                     temp.push_str(tile_string)
                 },
-                // Square::Empty => temp.push_str(&index_to_position(i)),
                 Square::Occupied(idx) => temp.push_str(&self.pieces[*idx].to_string()),
             }
 
