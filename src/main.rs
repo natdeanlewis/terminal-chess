@@ -57,7 +57,7 @@ enum Colour {
     Black
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum PieceType {
     Pawn,
     Bishop,
@@ -67,7 +67,7 @@ enum PieceType {
     King
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Piece {
     position: PiecePosition,
     colour: Colour,
@@ -88,7 +88,7 @@ struct Game {
 impl Game {
     fn push_piece_and_square(&mut self, position: usize, colour: Colour, piece_type: PieceType, index: &mut usize) {
         self.pieces.push(Piece {
-            position: 1u64 <<  position,
+            position: 1u64 << position,
             colour: colour,
             piece_type: piece_type,
         });
@@ -205,29 +205,50 @@ fn get_piece_index(square: &Square) -> Option<usize> {
 
 fn main() {
     let mut game = Game::initialize();
+    println!("{}", game.to_string());
 
     loop {
-        println!("{}", game.to_string());
-        println!("Which piece to move (by coords)?");
+        println!("Coordinates of piece to move:");
         let mut start_input = String::new();
         io::stdin().read_line(&mut start_input).unwrap();
 
         if let Some(start_position) = coords_to_position(&start_input) {
-            if let Some(piece) = game.pieces.iter_mut().find(|p| p.position == start_position) {
-                println!("Where to move the {:?} {:?} (by coords)?", piece.colour, piece.piece_type);
+            if let Some(start_piece_index) = game.pieces.iter().position(|p| p.position == start_position) {
+                let mut piece = game.pieces[start_piece_index].clone();
+
+                println!(
+                    "Target coordinates for this {:?} {:?}:",
+                    piece.colour, piece.piece_type
+                );
                 let mut end_input = String::new();
                 io::stdin().read_line(&mut end_input).unwrap();
 
                 if let Some(end_position) = coords_to_position(&end_input) {
-                    if let Some(start_square) = coords_to_bit(&start_input){
-                        if let Some(end_square) = coords_to_bit(&end_input){
-                            piece.position = end_position;
+                    if let Some(start_square) = coords_to_bit(&start_input) {
+                        if let Some(end_square) = coords_to_bit(&end_input) {
+                            if let Some(target_index) = game.pieces.iter_mut().position(|p| p.position == end_position) {
+                                let target_piece = game.pieces[target_index].clone();
+                                if target_piece.colour != piece.colour {
+                                    game.squares[end_square as usize] = Square::Empty;
+                                    game.pieces[target_index].position = 0;
+                                    println!("{:?}", game.pieces);
+                                    println!("Captured the {:?} {:?} at {}", target_piece.colour, target_piece.piece_type, end_input);
+                                } else {
+                                    println!("There is already a {:?} piece at {}", piece.colour, end_input);
+                                    continue;
+                                }
+                            }
+
+                            game.pieces[start_piece_index].position = end_position;
                             let piece_index = get_piece_index(&game.squares[start_square as usize]);
                             game.squares[start_square as usize] = Square::Empty;
                             game.squares[end_square as usize] = Square::Occupied(piece_index.unwrap());
+                            println!("{}", game.to_string());
                         }
                     }
                 }
+            } else {
+                println!("No piece at {}", start_input);
             }
         }
     }
