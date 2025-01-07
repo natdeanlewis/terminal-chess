@@ -1,4 +1,6 @@
 use std::io;
+use std::io::Write;
+
 type PiecePosition = u64;
 
 fn bit_to_position(bit: PiecePosition) -> Result<String, String> {
@@ -208,7 +210,8 @@ fn main() {
     println!("{}", game.to_string());
 
     loop {
-        println!("Coordinates of piece to move:");
+        print!("Coordinates of piece to move: ");
+        io::stdout().flush().unwrap();
         let mut start_input = String::new();
         io::stdin().read_line(&mut start_input).unwrap();
 
@@ -216,10 +219,11 @@ fn main() {
             if let Some(start_piece_index) = game.pieces.iter().position(|p| p.position == start_position) {
                 let mut piece = game.pieces[start_piece_index].clone();
 
-                println!(
-                    "Target coordinates for this {:?} {:?}:",
+                print!(
+                    "Target coordinates for this {:?} {:?}: ",
                     piece.colour, piece.piece_type
                 );
+                io::stdout().flush().unwrap();
                 let mut end_input = String::new();
                 io::stdin().read_line(&mut end_input).unwrap();
 
@@ -231,7 +235,6 @@ fn main() {
                                 if target_piece.colour != piece.colour {
                                     game.squares[end_square as usize] = Square::Empty;
                                     game.pieces[target_index].position = 0;
-                                    println!("{:?}", game.pieces);
                                     println!("Captured the {:?} {:?} at {}", target_piece.colour, target_piece.piece_type, end_input);
                                 } else {
                                     println!("There is already a {:?} piece at {}", piece.colour, end_input);
