@@ -1,3 +1,4 @@
+use std::io;
 type PiecePosition = u64;
 
 fn bit_to_position(bit: PiecePosition) -> Result<String, String> {
@@ -15,6 +16,22 @@ fn index_to_position(index: usize) -> String {
     let column = index % 8;
     let row = index / 8 + 1;
     format!("{}{}", COL_MAP[column], row)
+}
+
+fn coords_to_bit(coords: &str) -> Option<(u8)> {
+    let mut chars = coords.chars();
+    let column_char = chars.next()?;
+    let row_char = chars.next()?;
+
+    let col_index = COL_MAP.iter().position(|&c| c == column_char)? as u8;
+    let row = row_char.to_digit(10)? as u8;
+    let row_index = row - 1;
+    Some(8 * row_index + col_index)
+}
+fn coords_to_position(coords: &str) -> Option<(u64)>  {
+    let bit = coords_to_bit(coords)?;
+    let position = 1u64 << bit;
+    Some(position)
 }
 
 static MOD67TABLE: [usize; 67] = [
@@ -69,7 +86,6 @@ struct Game {
 }
 
 impl Game {
-
     fn push_piece_and_square(&mut self, position: usize, colour: Colour, piece_type: PieceType, index: &mut usize) {
         self.pieces.push(Piece {
             position: 1u64 <<  position,
@@ -176,7 +192,40 @@ impl Piece {
     }
 }
 
+fn get_piece_index(square: &Square) -> Option<usize> {
+    match square {
+        Square::Occupied(index) => Some(*index),
+        Square::Empty => None,
+    }
+}
+
 fn main() {
     let mut game = Game::initialize();
-    println!("{}", game.to_string());
+
+    loop {
+        println!("{}", game.to_string());
+        println!("Which piece to move (by coords)?");
+        let mut start_input = String::new();
+        io::stdin().read_line(&mut start_input).unwrap();
+
+        if let Some(start_position) = coords_to_position(&start_input) {
+            if let Some(piece) = game.pieces.iter_mut().find(|p| p.position == start_position) {
+                println!("Where to move the {:?} {:?} (by coords)?", piece.colour, piece.piece_type);
+                let mut end_input = String::new();
+                io::stdin().read_line(&mut end_input).unwrap();
+
+                if let Some(end_position) = coords_to_position(&end_input) {
+                    if let Some(start_square) = coords_to_bit(&start_input){
+                        if let Some(end_square) = coords_to_bit(&end_input){
+                            piece.position = end_position;
+                            let piece_index = get_piece_index(&game.squares[start_square as usize]);
+                            game.squares[start_square as usize] = Square::Empty;
+                            game.squares[end_square as usize] = Square::Occupied(piece_index.unwrap());
+                            println!("{:?}", game.squares)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
