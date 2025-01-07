@@ -146,7 +146,7 @@ impl Game {
                 temp.push_str(" ");
             }
 
-            let background_colour = if i % 2 == (i / 8) % 2 { "\x1b[40m" } else { "\x1b[47m" };
+            let background_colour = if i % 2 == (i / 8) % 2 { "\x1b[100m" } else { "\x1b[47m" };
             temp.push_str(background_colour);
             match square {
                 Square::Empty => {
@@ -174,22 +174,22 @@ impl Piece {
     fn to_string(&self) -> String {
         if self.colour == Colour::White {
             let mut result = match self.piece_type {
-                PieceType::Pawn => " ♟ ",
-                PieceType::Bishop => " ♝ ",
-                PieceType::Knight => " ♞ ",
-                PieceType::Rook => " ♜ ",
-                PieceType::Queen => " ♛ ",
-                PieceType::King => " ♚ ",
+                PieceType::Pawn => "\x1b[97m ♟ ",
+                PieceType::Bishop => "\x1b[97m ♝ ",
+                PieceType::Knight => "\x1b[97m ♞ ",
+                PieceType::Rook => "\x1b[97m ♜ ",
+                PieceType::Queen => "\x1b[97m ♛ ",
+                PieceType::King => "\x1b[97m ♚ ",
             }.to_string();
         result
         } else {
             let mut result = match self.piece_type {
-                PieceType::Pawn => " ♙ ",
-                PieceType::Bishop => " ♗ ",
-                PieceType::Knight => " ♘ ",
-                PieceType::Rook => " ♖ ",
-                PieceType::Queen => " ♕ ",
-                PieceType::King => " ♔ ",
+                PieceType::Pawn => "\x1b[30m ♟ ",
+                PieceType::Bishop => "\x1b[30m ♝ ",
+                PieceType::Knight => "\x1b[30m ♞ ",
+                PieceType::Rook => "\x1b[30m ♜ ",
+                PieceType::Queen => "\x1b[30m ♛ ",
+                PieceType::King => "\x1b[30m ♚ ",
             }.to_string();
         result
         }
