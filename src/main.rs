@@ -92,6 +92,7 @@ struct Game {
     halfmove_clock: usize,
     fullmove_number: usize,
     selected_square: Option<u8>,
+    possible_moves: Option<Vec<PiecePosition>>,
 }
 
 bitflags! {
@@ -120,7 +121,7 @@ impl Game {
         self.squares.push(Square::Empty);
     }
     fn initialize() -> Game {
-        let mut game = Game { pieces: vec![], squares: vec![] , active_colour: Colour::White, castling_rights: CastlingRights::ALL, en_passant: None, halfmove_clock: 0, fullmove_number: 1, selected_square: None};
+        let mut game = Game { pieces: vec![], squares: vec![] , active_colour: Colour::White, castling_rights: CastlingRights::ALL, en_passant: None, halfmove_clock: 0, fullmove_number: 1, selected_square: None, possible_moves: None };
         let mut piece_index = 0;
 
         let colour = Colour::White;
@@ -166,8 +167,11 @@ impl Game {
             }
 
             let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
-            if Some(i as u8) == self.selected_square{
+            if Some(i as u8) == self.selected_square {
                 background_colour = "\x1b[48;5;70m";
+            } else if self.possible_moves.as_ref().map_or(false, |moves| {
+                moves.iter().any(|&move_| move_ == (1 << i)) }) {
+                background_colour = "\x1b[48;5;112m";
             }
             temp.push_str(background_colour);
             match square {
@@ -229,6 +233,54 @@ fn print_board(game: &Game) {
     println!("{}", game.to_string());
 }
 
+fn get_possible_moves(piece: &Piece, game: &mut Game) -> Option<Vec<PiecePosition>> {
+    let mut possible_moves = Vec::new();
+    let onebit_index = bit_scan(piece.position);
+    match piece.piece_type {
+        PieceType::Pawn => {
+            if piece.colour == Colour::White {
+                possible_moves.push(piece.position << 8);
+                if onebit_index / 8 + 1 == 2 {
+                    possible_moves.push(piece.position << 16);
+                }
+            } else {
+                possible_moves.push(piece.position >> 8);
+                if onebit_index / 8 + 1 == 7 {
+                    possible_moves.push(piece.position >> 16);
+                }
+            }
+        }
+        PieceType::Bishop => {}
+        PieceType::Knight => {
+            if onebit_index % 8 > 0 {
+                possible_moves.push(piece.position << 15);
+                possible_moves.push(piece.position >> 17);
+            }
+            if onebit_index % 8 > 1 {
+                possible_moves.push(piece.position << 6);
+                possible_moves.push(piece.position >> 10);
+            }
+            if onebit_index % 8 < 7 {
+                possible_moves.push(piece.position << 17);
+                possible_moves.push(piece.position >> 15);
+            }
+            if onebit_index % 8 < 6 {
+                possible_moves.push(piece.position << 10);
+                possible_moves.push(piece.position >> 6);
+            }
+        }
+        PieceType::Rook => {}
+        PieceType::Queen => {}
+        PieceType::King => {}
+
+    }
+
+    possible_moves.retain(|possible_move| {
+        !game.pieces.iter().any(|p| p.position == *possible_move && p.colour == game.active_colour)
+    });
+
+    Some(possible_moves)
+}
 fn main() {
     let mut game = Game::initialize();
     print_board(&game);
@@ -239,14 +291,15 @@ fn main() {
         io::stdout().flush().unwrap();
         let mut start_input = String::new();
         io::stdin().read_line(&mut start_input).unwrap();
+        start_input = start_input.trim().to_string();
 
         if let Some(start_position) = coords_to_position(&start_input) {
             if let Some(start_square) = coords_to_bit(&start_input) {
                 if let Some(start_piece_index) = game.pieces.iter().position(|p| p.position == start_position && p.colour == game.active_colour) {
                     let mut piece = game.pieces[start_piece_index].clone();
                     game.selected_square = Some(start_square);
-                    print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
-                    println!("{}", game.to_string());
+                    game.possible_moves = get_possible_moves(&piece, &mut game);
+                    print_board(&game);
                     print!(
                         "Target coordinates for this {:?} {:?}: ",
                         piece.colour, piece.piece_type
@@ -254,35 +307,37 @@ fn main() {
                     io::stdout().flush().unwrap();
                     let mut end_input = String::new();
                     io::stdin().read_line(&mut end_input).unwrap();
+                    end_input = end_input.trim().to_string();
 
                     if let Some(end_position) = coords_to_position(&end_input) {
                         if let Some(end_square) = coords_to_bit(&end_input) {
-                            if let Some(target_index) = game.pieces.iter_mut().position(|p| p.position == end_position) {
-                                let target_piece = game.pieces[target_index].clone();
-                                if target_piece.colour != piece.colour {
+                            if game.possible_moves.unwrap().contains(&end_position) {
+                                if let Some(target_index) = game.pieces.iter_mut().position(|p| p.position == end_position && p.colour != game.active_colour) {
                                     game.squares[end_square as usize] = Square::Empty;
                                     game.pieces[target_index].position = 0;
-                                } else {
-                                    game.selected_square = None;
-                                    print_board(&game);
-                                    println!("There is already a {:?} piece at {}", piece.colour, end_input);
-                                    continue;
                                 }
-                            }
-                            game.selected_square = None;
+                                game.selected_square = None;
+                                game.possible_moves = None;
 
-                            game.pieces[start_piece_index].position = end_position;
-                            let piece_index = get_piece_index(&game.squares[start_square as usize]);
-                            game.squares[start_square as usize] = Square::Empty;
-                            game.squares[end_square as usize] = Square::Occupied(piece_index.unwrap());
-                            if game.active_colour == Colour::Black {
-                                game.fullmove_number += 1;
+                                game.pieces[start_piece_index].position = end_position;
+                                let piece_index = get_piece_index(&game.squares[start_square as usize]);
+                                game.squares[start_square as usize] = Square::Empty;
+                                game.squares[end_square as usize] = Square::Occupied(piece_index.unwrap());
+                                if game.active_colour == Colour::Black {
+                                    game.fullmove_number += 1;
+                                }
+                                game.active_colour = match game.active_colour {
+                                    Colour::White => Colour::Black,
+                                    Colour::Black => Colour::White,
+                                };
+                                print_board(&game);
+                            } else {
+                                game.selected_square = None;
+                                game.possible_moves = None;
+                                print_board(&game);
+                                println!("{} -> {} is illegal", start_input, end_input);
+                                continue;
                             }
-                            game.active_colour = match game.active_colour {
-                                Colour::White => Colour::Black,
-                                Colour::Black => Colour::White,
-                            };
-                            print_board(&game);
                         }
                     }
                 } else {
