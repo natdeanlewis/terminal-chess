@@ -287,7 +287,7 @@ fn get_possible_moves(piece: &Piece, game: &mut Game) -> Option<Vec<PiecePositio
     if piece.piece_type == PieceType::Pawn {
         for diagonal_piece in game.pieces.iter().filter(|p| {
             let p_position = bit_scan(p.position);
-            if game.active_colour == White {
+            if game.active_colour == Colour::White {
                 p_position == onebit_index + 7 || p_position == onebit_index + 9
             } else {
                 p_position == onebit_index - 7 || p_position == onebit_index - 9
