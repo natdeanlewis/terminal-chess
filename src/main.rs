@@ -288,9 +288,10 @@ fn get_possible_moves(piece: &Piece, game: &mut Game) -> Option<Vec<PiecePositio
         for diagonal_piece in game.pieces.iter().filter(|p| {
             let p_position = bit_scan(p.position);
             if game.active_colour == Colour::White {
-                p_position == onebit_index + 7 || p_position == onebit_index + 9
+                (onebit_index % 8 > 0 && p_position == onebit_index + 7) || (onebit_index % 8 < 7 && p_position == onebit_index + 9)
             } else {
-                p_position == onebit_index - 7 || p_position == onebit_index - 9
+                (onebit_index % 8 < 7 && p_position == onebit_index - 7) || (onebit_index % 8 > 0 && p_position == onebit_index - 9)
+
             }
         }) {
             possible_moves.push(diagonal_piece.position);
