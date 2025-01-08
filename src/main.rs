@@ -148,7 +148,7 @@ impl Game {
                 temp.push_str(" ");
             }
 
-            let background_colour = if i % 2 == (i / 8) % 2 { "\x1b[100m" } else { "\x1b[47m" };
+            let background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
             temp.push_str(background_colour);
             match square {
                 Square::Empty => {
