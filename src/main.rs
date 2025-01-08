@@ -1,5 +1,6 @@
 use std::io;
 use std::io::Write;
+use bitflags::bitflags;
 
 type PiecePosition = u64;
 
@@ -85,6 +86,22 @@ enum Square {
 struct Game {
     pieces: Vec<Piece>,
     squares: Vec<Square>,
+    active_colour: Colour,
+    castling_rights: CastlingRights,
+    en_passant: Option<PiecePosition>,
+    halfmove_clock: usize,
+    fullmove_number: usize,
+}
+
+bitflags! {
+    struct CastlingRights: u8 {
+        const NONE = 0;
+        const WHITEKINGSIDE = 1 << 0;
+        const WHITEQUEENSIDE = 1 << 1;
+        const BLACKKINGSIDE = 1 << 2;
+        const BLACKQUEENSIDE = 1 << 3;
+        const ALL = Self::WHITEKINGSIDE.bits() | Self::WHITEQUEENSIDE.bits() | Self::BLACKKINGSIDE.bits() | Self::BLACKQUEENSIDE.bits();
+    }
 }
 
 impl Game {
@@ -102,7 +119,7 @@ impl Game {
         self.squares.push(Square::Empty);
     }
     fn initialize() -> Game {
-        let mut game = Game { pieces: vec![], squares: vec![] };
+        let mut game = Game { pieces: vec![], squares: vec![] , active_colour: Colour::White, castling_rights: CastlingRights::ALL, en_passant: None, halfmove_clock: 0, fullmove_number: 1};
         let mut piece_index = 0;
 
         let colour = Colour::White;
@@ -167,7 +184,6 @@ impl Game {
             }
         }
         board.insert_str(0, &temp);
-
         board
     }
 }
@@ -210,13 +226,14 @@ fn main() {
     println!("{}", game.to_string());
 
     loop {
+        println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
         print!("Coordinates of piece to move: ");
         io::stdout().flush().unwrap();
         let mut start_input = String::new();
         io::stdin().read_line(&mut start_input).unwrap();
 
         if let Some(start_position) = coords_to_position(&start_input) {
-            if let Some(start_piece_index) = game.pieces.iter().position(|p| p.position == start_position) {
+            if let Some(start_piece_index) = game.pieces.iter().position(|p| p.position == start_position && p.colour == game.active_colour) {
                 let mut piece = game.pieces[start_piece_index].clone();
 
                 print!(
@@ -246,12 +263,19 @@ fn main() {
                             let piece_index = get_piece_index(&game.squares[start_square as usize]);
                             game.squares[start_square as usize] = Square::Empty;
                             game.squares[end_square as usize] = Square::Occupied(piece_index.unwrap());
+                            if game.active_colour == Colour::Black {
+                                game.fullmove_number += 1;
+                            }
+                            game.active_colour = match game.active_colour {
+                                Colour::White => Colour::Black,
+                                Colour::Black => Colour::White,
+                            };
                             println!("{}", game.to_string());
                         }
                     }
                 }
             } else {
-                println!("No piece at {}", start_input);
+                println!("No {:?} piece at {}", game.active_colour, start_input);
             }
         }
     }
