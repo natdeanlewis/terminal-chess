@@ -1,8 +1,6 @@
 use std::io;
 use std::io::Write;
 use bitflags::bitflags;
-use crate::Colour::White;
-use crate::PieceType::Pawn;
 
 type PiecePosition = u64;
 
