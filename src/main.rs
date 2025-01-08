@@ -1,6 +1,8 @@
 use std::io;
 use std::io::Write;
 use bitflags::bitflags;
+use crate::Colour::White;
+use crate::PieceType::Pawn;
 
 type PiecePosition = u64;
 
@@ -275,9 +277,27 @@ fn get_possible_moves(piece: &Piece, game: &mut Game) -> Option<Vec<PiecePositio
 
     }
 
+    // pawns can't take forwards
     possible_moves.retain(|possible_move| {
-        !game.pieces.iter().any(|p| p.position == *possible_move && p.colour == game.active_colour)
+        !game.pieces.iter().any(|p|
+            piece.piece_type != PieceType::Pawn && p.position == *possible_move && p.colour == game.active_colour
+            || piece.piece_type == PieceType::Pawn && p.position == *possible_move && p.colour != game.active_colour
+        )
     });
+
+    // pawns take diagonally
+    if piece.piece_type == PieceType::Pawn {
+        for diagonal_piece in game.pieces.iter().filter(|p| {
+            let p_position = bit_scan(p.position);
+            if game.active_colour == White {
+                p_position == onebit_index + 7 || p_position == onebit_index + 9
+            } else {
+                p_position == onebit_index - 7 || p_position == onebit_index - 9
+            }
+        }) {
+            possible_moves.push(diagonal_piece.position);
+        }
+    }
 
     Some(possible_moves)
 }
@@ -287,7 +307,7 @@ fn main() {
 
     loop {
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
-        print!("Coordinates of piece to move: ");
+        print!("Piece coordinates: ");
         io::stdout().flush().unwrap();
         let mut start_input = String::new();
         io::stdin().read_line(&mut start_input).unwrap();
@@ -301,8 +321,7 @@ fn main() {
                     game.possible_moves = get_possible_moves(&piece, &mut game);
                     print_board(&game);
                     print!(
-                        "Target coordinates for this {:?} {:?}: ",
-                        piece.colour, piece.piece_type
+                        "Target coordinates: ",
                     );
                     io::stdout().flush().unwrap();
                     let mut end_input = String::new();
