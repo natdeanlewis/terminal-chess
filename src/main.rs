@@ -161,8 +161,7 @@ impl Game {
         board.insert_str(0, "   a  b  c  d  e  f  g  h");
         for (i, square) in self.squares.iter().enumerate() {
             if i % 8 == 0 {
-                temp.push_str(((i / 8) + 1).to_string().as_str());
-                temp.push_str(" ");
+                temp.push_str(&format!("{} ", (i / 8) + 1));
             }
 
             let background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
@@ -223,6 +222,7 @@ fn get_piece_index(square: &Square) -> Option<usize> {
 
 fn main() {
     let mut game = Game::initialize();
+    print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     println!("{}", game.to_string());
 
     loop {
@@ -252,7 +252,6 @@ fn main() {
                                 if target_piece.colour != piece.colour {
                                     game.squares[end_square as usize] = Square::Empty;
                                     game.pieces[target_index].position = 0;
-                                    println!("Captured the {:?} {:?} at {}", target_piece.colour, target_piece.piece_type, end_input);
                                 } else {
                                     println!("There is already a {:?} piece at {}", piece.colour, end_input);
                                     continue;
@@ -270,6 +269,7 @@ fn main() {
                                 Colour::White => Colour::Black,
                                 Colour::Black => Colour::White,
                             };
+                            print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
                             println!("{}", game.to_string());
                         }
                     }
