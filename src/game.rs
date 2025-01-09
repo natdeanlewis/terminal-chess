@@ -13,6 +13,8 @@ use crate::utils::*;
 
 
 // TODO: generate moves for each piece for a given board state
+// and then use these to only allow legal moves.
+// later use these for the engine to calculate good and bad moves
 // use bitboard per piece type?
 // knight
 // king
