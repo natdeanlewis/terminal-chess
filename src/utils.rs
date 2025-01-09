@@ -10,31 +10,31 @@ static MOD67TABLE: [usize; 67] = [
     6, 34, 33
 ];
 
-pub fn bit_to_position(bit: u64) -> Result<String, String> {
+pub fn bit_to_coords(bit: u64) -> Result<String, String> {
     if bit == 0 {
         return Err("No piece present!".to_string());
     } else {
         let onebit_index = bit_to_onebit_index(bit);
-        return Ok(onebit_index_to_position(onebit_index));
+        return Ok(onebit_index_to_coords(onebit_index));
     }
 }
 
-pub fn position_to_bit(position: &str) -> Result<u64, String> {
-    if let Ok(onebit_index) = position_to_onebit_index(position) {
+pub fn coords_to_bit(coords: &str) -> Result<u64, String> {
+    if let Ok(onebit_index) = coords_to_onebit_index(coords) {
         return Ok(onebit_index_to_bit(onebit_index))
     }
-    return Err(format!("Invalid position: {}", position));
+    return Err(format!("Invalid coords: {}", coords));
 }
 
-pub fn position_to_onebit_index(position: &str) -> Result<u8, String> {
-    if position.len() != 2 {
-        return Err(format!("Invalid length: {}, string: '{}'", position.len(), position));
+pub fn coords_to_onebit_index(coords: &str) -> Result<usize, String> {
+    if coords.len() != 2 {
+        return Err(format!("Invalid length: {}, string: '{}'", coords.len(), coords));
     }
 
-    let bytes = position.as_bytes();
+    let bytes = coords.as_bytes();
     let byte0 = bytes[0];
     if byte0 < 97 || byte0 >= 97 + 8 {
-        return Err(format!("Invalid column character: {}, string: '{}'", byte0 as char, position));
+        return Err(format!("Invalid column character: {}, string: '{}'", byte0 as char, coords));
     }
     let column = (byte0 - 97) as u32;
 
@@ -43,25 +43,25 @@ pub fn position_to_onebit_index(position: &str) -> Result<u8, String> {
 
     match (byte1 as char).to_digit(10) {
         Some(number) => if number < 1 || number > 8 {
-            return Err(format!("Invalid row character: {}, string: '{}'", byte1, position));
+            return Err(format!("Invalid row character: {}, string: '{}'", byte1, coords));
         } else {
             row = number - 1
         },
-        None => return Err(format!("Invalid row character: {}, string: '{}'", byte1, position)),
+        None => return Err(format!("Invalid row character: {}, string: '{}'", byte1, coords)),
     }
     let onebit_index = row * 8 + column;
-    Ok(onebit_index as u8)
+    Ok(onebit_index as usize)
 }
 
 static COL_MAP: [char; 8] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-pub fn onebit_index_to_position(onebit_index: usize) -> String {
+pub fn onebit_index_to_coords(onebit_index: usize) -> String {
     let column = onebit_index % 8;
     let row = onebit_index / 8 + 1;
     format!("{}{}", COL_MAP[column], row)
 }
 
-pub fn onebit_index_to_bit(onebit_index: u8) -> u64 {
+pub fn onebit_index_to_bit(onebit_index: usize) -> u64 {
     1u64 << onebit_index
 }
 

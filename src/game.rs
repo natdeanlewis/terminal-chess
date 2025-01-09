@@ -6,7 +6,7 @@ use std::io::Write;
 use crate::utils::*;
 type PieceBit = u64;
 // e.g.s:
-// position: e4
+// coords: e4
 // bit: 0000...0000000100000000000 (2^12)
 // onebit_index = 12 (0 to 63)
 // piece_index = count of piece (0 to 31)
@@ -48,7 +48,7 @@ pub struct Game {
     pub en_passant: Option<u64>,
     pub halfmove_clock: usize,
     pub fullmove_number: usize,
-    pub selected_square: Option<u8>,
+    pub selected_square: Option<usize>,
 }
 
 bitflags! {
@@ -64,9 +64,9 @@ bitflags! {
 }
 
 impl Game {
-    fn push_piece_and_square(&mut self, position: usize, colour: Colour, piece_type: PieceType, piece_index: &mut usize) {
+    fn push_piece_and_square(&mut self, onebit_index: usize, colour: Colour, piece_type: PieceType, piece_index: &mut usize) {
         self.pieces.push(Piece {
-            bit: 1u64 << position,
+            bit: 1u64 << onebit_index,
             colour: colour,
             piece_type: piece_type,
         });
@@ -92,7 +92,7 @@ impl Game {
             }
 
             let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
-            if Some(i as u8) == self.selected_square {
+            if Some(i) == self.selected_square {
                 background_colour = "\x1b[48;5;70m";
             }
             temp.push_str(background_colour);
@@ -132,11 +132,11 @@ impl Game {
 
         let mut deque_squares = VecDeque::new();
         let mut piece_index = 0;
-        let mut piece_position = 64;
+        let mut onebit_index = 64;
 
         for row in position.splitn(8, |ch| ch == '/') {
-            piece_position -= 8;
-            let (pieces, squares) = parse_FEN_row(&row, piece_index, piece_position);
+            onebit_index -= 8;
+            let (pieces, squares) = parse_FEN_row(&row, piece_index, onebit_index);
             for p in pieces {
                 game.pieces.push(p);
                 piece_index += 1;
@@ -172,7 +172,7 @@ impl Game {
         let (en_passant, rest) = split_on(rest, ' ');
         match en_passant {
             "-" => game.en_passant = None,
-            s => match position_to_bit(s) {
+            s => match coords_to_bit(s) {
                 Err(msg) => panic!("{}", msg),
                 Ok(bit) => game.en_passant = Some(bit),
             }
@@ -193,7 +193,7 @@ impl Game {
     }
 }
 
-fn parse_FEN_row(row: &str, mut piece_index: usize, mut piece_position: usize) -> (Vec<Piece>, VecDeque<Square>) {
+fn parse_FEN_row(row: &str, mut piece_index: usize, mut onebit_index: usize) -> (Vec<Piece>, VecDeque<Square>) {
     let mut pieces = Vec::new();
     let mut squares = VecDeque::new();
 
@@ -205,13 +205,13 @@ fn parse_FEN_row(row: &str, mut piece_index: usize, mut piece_position: usize) -
             {
                 let piece = Piece {
                         colour: colour,
-                        bit: (1 as u64) << piece_position,
+                        bit: (1 as u64) << onebit_index,
                         piece_type: PieceType::$piece_type,
                     };
                     let square = Square::Occupied(piece_index);
                     pieces.push(piece);
                     squares.push_front(square);
-                    piece_position += 1;
+                    onebit_index += 1;
                     piece_index += 1;
             }
         };
@@ -231,7 +231,7 @@ fn parse_FEN_row(row: &str, mut piece_index: usize, mut piece_position: usize) -
                     None => panic!("Invalid input: {}", num),
                     Some(number) => for i in 0..number {
                         squares.push_front(Square::Empty);
-                        piece_position += 1;
+                        onebit_index += 1;
                     }
                 }
             }
@@ -282,45 +282,41 @@ pub fn game_loop(mut game: Game) {
         io::stdin().read_line(&mut start_input).unwrap();
         start_input = start_input.trim().to_string();
 
-        if let Ok(start_bit) = position_to_bit(&start_input) {
-            if let Ok(start_onebit_index) = position_to_onebit_index(&start_input) {
-                if let Some(start_piece_index) = game.pieces.iter().position(|p| p.bit == start_bit && p.colour == game.active_colour) {
-                    game.selected_square = Some(start_onebit_index);
-                    print_board(&game);
-                    print!(
-                        "Target coordinates: ",
-                    );
-                    io::stdout().flush().unwrap();
-                    let mut end_input = String::new();
-                    io::stdin().read_line(&mut end_input).unwrap();
-                    end_input = end_input.trim().to_string();
+        if let Ok(start_bit) = coords_to_bit(&start_input) {
+            let start_onebit_index = bit_to_onebit_index(start_bit);
+            if let Some(start_piece_index) = game.pieces.iter().position(|p| p.bit == start_bit && p.colour == game.active_colour) {
+                game.selected_square = Some(start_onebit_index);
+                print_board(&game);
+                print!("Target coordinates: ");
+                io::stdout().flush().unwrap();
+                let mut end_input = String::new();
+                io::stdin().read_line(&mut end_input).unwrap();
+                end_input = end_input.trim().to_string();
 
-                    if let Ok(end_position) = position_to_bit(&end_input) {
-                        if let Ok(end_onebit_index) = position_to_onebit_index(&end_input) {
-                            if let Some(target_index) = game.pieces.iter_mut().position(|p| p.bit == end_position && p.colour != game.active_colour) {
-                                game.squares[end_onebit_index as usize] = Square::Empty;
-                                game.pieces[target_index].bit = 0;
-                            }
-                            game.selected_square = None;
-
-                            game.pieces[start_piece_index].bit = end_position;
-                            let piece_index = get_piece_index(&game.squares[start_onebit_index as usize]);
-                            game.squares[start_onebit_index as usize] = Square::Empty;
-                            game.squares[end_onebit_index as usize] = Square::Occupied(piece_index.unwrap());
-                            if game.active_colour == Colour::Black {
-                                game.fullmove_number += 1;
-                            }
-                            game.active_colour = match game.active_colour {
-                                Colour::White => Colour::Black,
-                                Colour::Black => Colour::White,
-                            };
-                            print_board(&game);
-                        }
+                if let Ok(end_bit) = coords_to_bit(&end_input) {
+                    let end_onebit_index = bit_to_onebit_index(end_bit);
+                    if let Some(target_index) = game.pieces.iter().position(|p| p.bit == end_bit && p.colour != game.active_colour) {
+                        game.squares[end_onebit_index] = Square::Empty;
+                        game.pieces[target_index].bit = 0;
                     }
-                } else {
+                    game.selected_square = None;
+
+                    game.pieces[start_piece_index].bit = end_bit;
+                    let piece_index = get_piece_index(&game.squares[start_onebit_index]);
+                    game.squares[start_onebit_index] = Square::Empty;
+                    game.squares[end_onebit_index] = Square::Occupied(piece_index.unwrap());
+                    if game.active_colour == Colour::Black {
+                        game.fullmove_number += 1;
+                    }
+                    game.active_colour = match game.active_colour {
+                        Colour::White => Colour::Black,
+                        Colour::Black => Colour::White,
+                    };
                     print_board(&game);
-                    println!("No {:?} piece at {}", game.active_colour, start_input);
                 }
+            } else {
+                print_board(&game);
+                println!("No {:?} piece at {}", game.active_colour, start_input);
             }
         }
     }
