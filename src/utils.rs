@@ -10,6 +10,62 @@ static MOD67TABLE: [usize; 67] = [
     6, 34, 33
 ];
 
+pub fn bit_to_position(bit: u64) -> Result<String, String> {
+    if bit == 0 {
+        return Err("No piece present!".to_string());
+    } else {
+        let onebit_index = bit_to_onebit_index(bit);
+        return Ok(onebit_index_to_position(onebit_index));
+    }
+}
+
+pub fn position_to_bit(position: &str) -> Result<u64, String> {
+    if let Ok(onebit_index) = position_to_onebit_index(position) {
+        return Ok(onebit_index_to_bit(onebit_index))
+    }
+    return Err(format!("Invalid position: {}", position));
+}
+
+pub fn position_to_onebit_index(position: &str) -> Result<u8, String> {
+    if position.len() != 2 {
+        return Err(format!("Invalid length: {}, string: '{}'", position.len(), position));
+    }
+
+    let bytes = position.as_bytes();
+    let byte0 = bytes[0];
+    if byte0 < 97 || byte0 >= 97 + 8 {
+        return Err(format!("Invalid column character: {}, string: '{}'", byte0 as char, position));
+    }
+    let column = (byte0 - 97) as u32;
+
+    let byte1 = bytes[1];
+    let row;
+
+    match (byte1 as char).to_digit(10) {
+        Some(number) => if number < 1 || number > 8 {
+            return Err(format!("Invalid row character: {}, string: '{}'", byte1, position));
+        } else {
+            row = number - 1
+        },
+        None => return Err(format!("Invalid row character: {}, string: '{}'", byte1, position)),
+    }
+    let onebit_index = row * 8 + column;
+    Ok(onebit_index as u8)
+}
+
+static COL_MAP: [char; 8] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+pub fn onebit_index_to_position(onebit_index: usize) -> String {
+    let column = onebit_index % 8;
+    let row = onebit_index / 8 + 1;
+    format!("{}{}", COL_MAP[column], row)
+}
+
+pub fn onebit_index_to_bit(onebit_index: u8) -> u64 {
+    1u64 << onebit_index
+}
+
+
 pub fn bit_to_onebit_index(mut bit: u64) -> usize {
     let remainder: usize = (bit % 67) as usize;
     MOD67TABLE[remainder]
