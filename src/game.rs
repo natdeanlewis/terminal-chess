@@ -9,7 +9,23 @@ use crate::utils::*;
 // bit: 0000...0000000100000000000 (2^12)
 // onebit_index = 12 (0 to 63)
 // piece_index = count of piece (0 to 31)
-// position: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+// position: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 (board state)
+
+
+// TODO: generate moves for each piece for a given board state
+// use bitboard per piece type?
+// knight
+// king
+// rook
+// bishop
+// queen
+// pawn
+// castling
+// en passant
+// check
+// checkmate
+// stalemate
+// repetition draws
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Colour {
@@ -32,6 +48,7 @@ pub struct Piece {
     bit: u64,
     colour: Colour,
     piece_type: PieceType,
+    taken: bool,
 }
 
 #[derive(Debug)]
@@ -191,6 +208,7 @@ fn parse_FEN_row(row: &str, mut piece_index: usize, mut onebit_index: usize) -> 
                         colour: colour,
                         bit: (1 as u64) << onebit_index,
                         piece_type: PieceType::$piece_type,
+                        taken: false,
                     };
                     let square = Square::Occupied(piece_index);
                     pieces.push(piece);
@@ -261,6 +279,8 @@ pub fn game_loop(mut game: Game) {
     print_board(&game);
 
     loop {
+        generate_moves(&mut game);
+
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
         print!("Piece coordinates: ");
         io::stdout().flush().unwrap();
@@ -270,7 +290,7 @@ pub fn game_loop(mut game: Game) {
 
         if let Ok(start_bit) = coords_to_bit(&start_input) {
             let start_onebit_index = bit_to_onebit_index(start_bit);
-            if let Some(start_piece_index) = game.pieces.iter().position(|p| p.bit == start_bit && p.colour == game.active_colour) {
+            if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
                 print!("Target coordinates: ");
                 io::stdout().flush().unwrap();
                 let mut end_input = String::new();
@@ -279,9 +299,9 @@ pub fn game_loop(mut game: Game) {
 
                 if let Ok(end_bit) = coords_to_bit(&end_input) {
                     let end_onebit_index = bit_to_onebit_index(end_bit);
-                    if let Some(target_index) = game.pieces.iter().position(|p| p.bit == end_bit && p.colour != game.active_colour) {
+                    if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit && p.colour != game.active_colour) {
                         game.squares[end_onebit_index] = Square::Empty;
-                        game.pieces[target_index].bit = 0;
+                        game.pieces[target_index].taken = true;
                     }
 
                     game.pieces[start_piece_index].bit = end_bit;
@@ -308,4 +328,9 @@ pub fn game_loop(mut game: Game) {
 pub fn print_board(game: &Game) {
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     println!("{}", game.to_string());
+}
+
+pub fn generate_moves(game: &mut Game) {
+    for piece in &game.pieces {
+    }
 }
