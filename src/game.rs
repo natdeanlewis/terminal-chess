@@ -1,18 +1,18 @@
-use std::alloc::handle_alloc_error;
 use bitflags::bitflags;
 use std::collections::VecDeque;
 use std::io;
 use std::io::Write;
 use crate::utils::*;
-type PieceBit = u64;
+
 // e.g.s:
 // coords: e4
 // bit: 0000...0000000100000000000 (2^12)
 // onebit_index = 12 (0 to 63)
 // piece_index = count of piece (0 to 31)
+// position: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-enum Colour {
+pub enum Colour {
     White,
     Black
 }
@@ -28,14 +28,14 @@ enum PieceType {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-struct Piece {
+pub struct Piece {
     bit: u64,
     colour: Colour,
     piece_type: PieceType,
 }
 
 #[derive(Debug)]
-enum Square {
+pub enum Square {
     Empty,
     Occupied(usize),
 }
@@ -53,7 +53,7 @@ pub struct Game {
 
 bitflags! {
     #[derive(Debug)]
-    struct CastlingRights: u8 {
+    pub struct CastlingRights: u8 {
         const NONE = 0;
         const WHITEKINGSIDE = 1 << 0;
         const WHITEQUEENSIDE = 1 << 1;
@@ -64,19 +64,6 @@ bitflags! {
 }
 
 impl Game {
-    fn push_piece_and_square(&mut self, onebit_index: usize, colour: Colour, piece_type: PieceType, piece_index: &mut usize) {
-        self.pieces.push(Piece {
-            bit: 1u64 << onebit_index,
-            colour: colour,
-            piece_type: piece_type,
-        });
-        self.squares.push(Square::Occupied(*piece_index));
-        *piece_index += 1;
-    }
-
-    fn push_empty_square(&mut self) {
-        self.squares.push(Square::Empty);
-    }
     pub fn initialize() -> Game {
         let starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         Game::read_FEN(starting_fen_str)
@@ -116,6 +103,7 @@ impl Game {
         board
     }
 
+    #[allow(non_snake_case)]
     fn read_FEN(fen: &str) -> Game {
         let mut game = Game {
             pieces: vec![],
@@ -184,7 +172,7 @@ impl Game {
             Err(_) => panic!("Invalid halfmove: '{}'", halfmove_clock),
         }
 
-        let (fullmove_number, rest) = split_on(rest, ' ');
+        let (fullmove_number, _rest) = split_on(rest, ' ');
         match fullmove_number.parse() {
             Ok(num) => game.fullmove_number = num,
             Err(_) => panic!("Invalid fullmove: '{}'", fullmove_number),
@@ -193,6 +181,7 @@ impl Game {
     }
 }
 
+#[allow(non_snake_case)]
 fn parse_FEN_row(row: &str, mut piece_index: usize, mut onebit_index: usize) -> (Vec<Piece>, VecDeque<Square>) {
     let mut pieces = Vec::new();
     let mut squares = VecDeque::new();
@@ -229,7 +218,7 @@ fn parse_FEN_row(row: &str, mut piece_index: usize, mut onebit_index: usize) -> 
             num => {
                 match num.to_digit(10) {
                     None => panic!("Invalid input: {}", num),
-                    Some(number) => for i in 0..number {
+                    Some(number) => for _i in 0..number {
                         squares.push_front(Square::Empty);
                         onebit_index += 1;
                     }
@@ -243,7 +232,7 @@ fn parse_FEN_row(row: &str, mut piece_index: usize, mut onebit_index: usize) -> 
 impl Piece {
     fn to_string(&self) -> String {
         if self.colour == Colour::White {
-            let mut result = match self.piece_type {
+            let result = match self.piece_type {
                 PieceType::Pawn => "\x1b[97m ♟ ",
                 PieceType::Bishop => "\x1b[97m ♝ ",
                 PieceType::Knight => "\x1b[97m ♞ ",
@@ -253,7 +242,7 @@ impl Piece {
             }.to_string();
             result
         } else {
-            let mut result = match self.piece_type {
+            let result = match self.piece_type {
                 PieceType::Pawn => "\x1b[30m ♟ ",
                 PieceType::Bishop => "\x1b[30m ♝ ",
                 PieceType::Knight => "\x1b[30m ♞ ",

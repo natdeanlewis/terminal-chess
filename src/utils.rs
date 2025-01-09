@@ -10,12 +10,13 @@ static MOD67TABLE: [usize; 67] = [
     6, 34, 33
 ];
 
+#[allow(dead_code)]
 pub fn bit_to_coords(bit: u64) -> Result<String, String> {
     if bit == 0 {
-        return Err("No piece present!".to_string());
+        Err("No piece present!".to_string())
     } else {
         let onebit_index = bit_to_onebit_index(bit);
-        return Ok(onebit_index_to_coords(onebit_index));
+        Ok(onebit_index_to_coords(onebit_index))
     }
 }
 
@@ -65,8 +66,7 @@ pub fn onebit_index_to_bit(onebit_index: usize) -> u64 {
     1u64 << onebit_index
 }
 
-
-pub fn bit_to_onebit_index(mut bit: u64) -> usize {
+pub fn bit_to_onebit_index(bit: u64) -> usize {
     let remainder: usize = (bit % 67) as usize;
     MOD67TABLE[remainder]
 }
