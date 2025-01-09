@@ -1,5 +1,6 @@
 mod utils;
 mod game;
+mod moves;
 
 use game::*;
 

@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use std::io;
 use std::io::Write;
 use crate::utils::*;
+use crate::moves::*;
 
 // e.g.s:
 // coords: e4
@@ -36,7 +37,7 @@ pub enum Colour {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-enum PieceType {
+pub enum PieceType {
     Pawn,
     Bishop,
     Knight,
@@ -47,9 +48,9 @@ enum PieceType {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Piece {
-    bit: u64,
-    colour: Colour,
-    piece_type: PieceType,
+    pub(crate) bit: u64,
+    pub(crate) colour: Colour,
+    pub(crate) piece_type: PieceType,
     taken: bool,
 }
 
@@ -281,7 +282,7 @@ pub fn game_loop(mut game: Game) {
     print_board(&game);
 
     loop {
-        generate_moves(&mut game);
+        let possible_moves = generate_moves(&mut game);
 
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
         print!("Piece coordinates: ");
@@ -301,21 +302,30 @@ pub fn game_loop(mut game: Game) {
 
                 if let Ok(end_bit) = coords_to_bit(&end_input) {
                     let end_onebit_index = bit_to_onebit_index(end_bit);
-                    if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
-                        game.pieces[target_index].taken = true;
-                    }
-                    let piece_index = get_piece_index(&game.squares[start_onebit_index]);
-                    game.squares[end_onebit_index] = Square::Occupied(piece_index.unwrap());
-                    game.squares[start_onebit_index] = Square::Empty;
-                    game.pieces[start_piece_index].bit = end_bit;
-                    if game.active_colour == Colour::Black {
-                        game.fullmove_number += 1;
-                    }
-                    game.active_colour = match game.active_colour {
-                        Colour::White => Colour::Black,
-                        Colour::Black => Colour::White,
+                    let input_move = Move {
+                        from_square: start_onebit_index,
+                        to_square: end_onebit_index,
                     };
-                    print_board(&game);
+                    if possible_moves.contains(&input_move) {
+                        if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
+                            game.pieces[target_index].taken = true;
+                        }
+                        let piece_index = get_piece_index(&game.squares[start_onebit_index]);
+                        game.squares[end_onebit_index] = Square::Occupied(piece_index.unwrap());
+                        game.squares[start_onebit_index] = Square::Empty;
+                        game.pieces[start_piece_index].bit = end_bit;
+                        if game.active_colour == Colour::Black {
+                            game.fullmove_number += 1;
+                        }
+                        game.active_colour = match game.active_colour {
+                            Colour::White => Colour::Black,
+                            Colour::Black => Colour::White,
+                        };
+                        print_board(&game);
+                    } else {
+                        println!("Invalid move");
+                    }
+
                 }
             } else {
                 print_board(&game);
@@ -328,9 +338,4 @@ pub fn game_loop(mut game: Game) {
 pub fn print_board(game: &Game) {
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     println!("{}", game.to_string());
-}
-
-pub fn generate_moves(game: &mut Game) {
-    for piece in &game.pieces {
-    }
 }
