@@ -1,25 +1,33 @@
+use std::alloc::handle_alloc_error;
 use bitflags::bitflags;
 use std::collections::VecDeque;
 use std::io;
 use std::io::Write;
 use crate::utils::*;
-type PiecePosition = u64;
+type PieceBit = u64;
 // e.g.s:
 // position: e4
 // bit: 0000...0000000100000000000 (2^12)
 // onebit_index = 12 (0 to 63)
-// piece_index = count of piece (1 to 32)
+// piece_index = count of piece (0 to 31)
 
-pub fn bit_to_position(bit: PiecePosition) -> Result<String, String> {
+pub fn bit_to_position(bit: u64) -> Result<String, String> {
     if bit == 0 {
         return Err("No piece present!".to_string());
     } else {
-        let onebit_index = bit_scan(bit);
+        let onebit_index = bit_to_onebit_index(bit);
         return Ok(onebit_index_to_position(onebit_index));
     }
 }
 
-pub fn position_to_bit(position: &str) -> Result<PiecePosition, String> {
+pub fn position_to_bit(position: &str) -> Result<u64, String> {
+    if let Ok(onebit_index) = position_to_onebit_index(position) {
+        return Ok(onebit_index_to_bit(onebit_index))
+    }
+    return Err(format!("Invalid position: {}", position));
+}
+
+pub fn position_to_onebit_index(position: &str) -> Result<u8, String> {
     if position.len() != 2 {
         return Err(format!("Invalid length: {}, string: '{}'", position.len(), position));
     }
@@ -42,9 +50,8 @@ pub fn position_to_bit(position: &str) -> Result<PiecePosition, String> {
         },
         None => return Err(format!("Invalid row character: {}, string: '{}'", byte1, position)),
     }
-    let square_number = row * 8 + column;
-    let bit = (1 as u64) << square_number;
-    Ok(bit)
+    let onebit_index = row * 8 + column;
+    Ok(onebit_index as u8)
 }
 
 static COL_MAP: [char; 8] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -55,22 +62,9 @@ pub fn onebit_index_to_position(onebit_index: usize) -> String {
     format!("{}{}", COL_MAP[column], row)
 }
 
-pub fn position_to_onebit_index(coords: &str) -> Option<(u8)> {
-    let mut chars = coords.chars();
-    let column_char = chars.next()?;
-    let row_char = chars.next()?;
-
-    let col_index = COL_MAP.iter().position(|&c| c == column_char)? as u8;
-    let row = row_char.to_digit(10)? as u8;
-    let row_index = row - 1;
-    Some(8 * row_index + col_index)
+pub fn onebit_index_to_bit(onebit_index: u8) -> u64 {
+    1u64 << onebit_index
 }
-pub fn coords_to_position(coords: &str) -> Option<(u64)>  {
-    let bit = position_to_onebit_index(coords)?;
-    let position = 1u64 << bit;
-    Some(position)
-}
-
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 enum Colour {
@@ -90,7 +84,7 @@ enum PieceType {
 
 #[derive(Debug, PartialEq, Clone)]
 struct Piece {
-    position: PiecePosition,
+    bit: u64,
     colour: Colour,
     piece_type: PieceType,
 }
@@ -106,7 +100,7 @@ pub struct Game {
     pub squares: Vec<Square>,
     pub active_colour: Colour,
     pub castling_rights: CastlingRights,
-    pub en_passant: Option<PiecePosition>,
+    pub en_passant: Option<u64>,
     pub halfmove_clock: usize,
     pub fullmove_number: usize,
     pub selected_square: Option<u8>,
@@ -127,7 +121,7 @@ bitflags! {
 impl Game {
     fn push_piece_and_square(&mut self, position: usize, colour: Colour, piece_type: PieceType, piece_index: &mut usize) {
         self.pieces.push(Piece {
-            position: 1u64 << position,
+            bit: 1u64 << position,
             colour: colour,
             piece_type: piece_type,
         });
@@ -266,7 +260,7 @@ fn parse_row(row: &str, mut piece_index: usize, mut piece_position: usize) -> (V
             {
                 let piece = Piece {
                         colour: colour,
-                        position: (1 as u64) << piece_position,
+                        bit: (1 as u64) << piece_position,
                         piece_type: PieceType::$piece_type,
                     };
                     let square = Square::Occupied(piece_index);
@@ -343,12 +337,11 @@ pub fn game_loop(mut game: Game) {
         io::stdin().read_line(&mut start_input).unwrap();
         start_input = start_input.trim().to_string();
 
-        if let Ok(start_position) = position_to_bit(&start_input) {
-
-            if let Some(start_square) = position_to_onebit_index(&start_input) {
-                println!("{}, {}", start_input, start_square);
-                if let Some(start_piece_index) = game.pieces.iter().position(|p| p.position == start_position && p.colour == game.active_colour) {
-                    game.selected_square = Some(start_square);
+        if let Ok(start_bit) = position_to_bit(&start_input) {
+            if let Ok(start_onebit_index) = position_to_onebit_index(&start_input) {
+                println!("{}, {}", start_input, start_onebit_index);
+                if let Some(start_piece_index) = game.pieces.iter().position(|p| p.bit == start_bit && p.colour == game.active_colour) {
+                    game.selected_square = Some(start_onebit_index);
                     print_board(&game);
                     print!(
                         "Target coordinates: ",
@@ -359,17 +352,17 @@ pub fn game_loop(mut game: Game) {
                     end_input = end_input.trim().to_string();
 
                     if let Ok(end_position) = position_to_bit(&end_input) {
-                        if let Some(end_square) = position_to_onebit_index(&end_input) {
-                            if let Some(target_index) = game.pieces.iter_mut().position(|p| p.position == end_position && p.colour != game.active_colour) {
-                                game.squares[end_square as usize] = Square::Empty;
-                                game.pieces[target_index].position = 0;
+                        if let Ok(end_onebit_index) = position_to_onebit_index(&end_input) {
+                            if let Some(target_index) = game.pieces.iter_mut().position(|p| p.bit == end_position && p.colour != game.active_colour) {
+                                game.squares[end_onebit_index as usize] = Square::Empty;
+                                game.pieces[target_index].bit = 0;
                             }
                             game.selected_square = None;
 
-                            game.pieces[start_piece_index].position = end_position;
-                            let piece_index = get_piece_index(&game.squares[start_square as usize]);
-                            game.squares[start_square as usize] = Square::Empty;
-                            game.squares[end_square as usize] = Square::Occupied(piece_index.unwrap());
+                            game.pieces[start_piece_index].bit = end_position;
+                            let piece_index = get_piece_index(&game.squares[start_onebit_index as usize]);
+                            game.squares[start_onebit_index as usize] = Square::Empty;
+                            game.squares[end_onebit_index as usize] = Square::Occupied(piece_index.unwrap());
                             if game.active_colour == Colour::Black {
                                 game.fullmove_number += 1;
                             }

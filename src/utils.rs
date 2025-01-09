@@ -10,7 +10,7 @@ static MOD67TABLE: [usize; 67] = [
     6, 34, 33
 ];
 
-pub fn bit_scan(mut bit: u64) -> usize {
+pub fn bit_to_onebit_index(mut bit: u64) -> usize {
     let remainder: usize = (bit % 67) as usize;
     MOD67TABLE[remainder]
 }
