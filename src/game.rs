@@ -4,13 +4,18 @@ use std::io;
 use std::io::Write;
 use crate::utils::*;
 type PiecePosition = u64;
+// e.g.s:
+// position: e4
+// bit: 0000...0000000100000000000 (2^12)
+// onebit_index = 12 (0 to 63)
+// piece_index = count of piece (1 to 32)
 
 pub fn bit_to_position(bit: PiecePosition) -> Result<String, String> {
     if bit == 0 {
         return Err("No piece present!".to_string());
     } else {
         let onebit_index = bit_scan(bit);
-        return Ok(index_to_position(onebit_index));
+        return Ok(onebit_index_to_position(onebit_index));
     }
 }
 
@@ -44,13 +49,13 @@ pub fn position_to_bit(position: &str) -> Result<PiecePosition, String> {
 
 static COL_MAP: [char; 8] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-pub fn index_to_position(index: usize) -> String {
-    let column = index % 8;
-    let row = index / 8 + 1;
+pub fn onebit_index_to_position(onebit_index: usize) -> String {
+    let column = onebit_index % 8;
+    let row = onebit_index / 8 + 1;
     format!("{}{}", COL_MAP[column], row)
 }
 
-pub fn coords_to_bit(coords: &str) -> Option<(u8)> {
+pub fn position_to_onebit_index(coords: &str) -> Option<(u8)> {
     let mut chars = coords.chars();
     let column_char = chars.next()?;
     let row_char = chars.next()?;
@@ -61,7 +66,7 @@ pub fn coords_to_bit(coords: &str) -> Option<(u8)> {
     Some(8 * row_index + col_index)
 }
 pub fn coords_to_position(coords: &str) -> Option<(u64)>  {
-    let bit = coords_to_bit(coords)?;
+    let bit = position_to_onebit_index(coords)?;
     let position = 1u64 << bit;
     Some(position)
 }
@@ -105,7 +110,6 @@ pub struct Game {
     pub halfmove_clock: usize,
     pub fullmove_number: usize,
     pub selected_square: Option<u8>,
-    pub possible_moves: Option<Vec<PiecePosition>>,
 }
 
 bitflags! {
@@ -121,14 +125,14 @@ bitflags! {
 }
 
 impl Game {
-    fn push_piece_and_square(&mut self, position: usize, colour: Colour, piece_type: PieceType, index: &mut usize) {
+    fn push_piece_and_square(&mut self, position: usize, colour: Colour, piece_type: PieceType, piece_index: &mut usize) {
         self.pieces.push(Piece {
             position: 1u64 << position,
             colour: colour,
             piece_type: piece_type,
         });
-        self.squares.push(Square::Occupied(*index));
-        *index += 1;
+        self.squares.push(Square::Occupied(*piece_index));
+        *piece_index += 1;
     }
 
     fn push_empty_square(&mut self) {
@@ -151,9 +155,6 @@ impl Game {
             let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
             if Some(i as u8) == self.selected_square {
                 background_colour = "\x1b[48;5;70m";
-            } else if self.possible_moves.as_ref().map_or(false, |moves| {
-                moves.iter().any(|&move_| move_ == (1 << i)) }) {
-                background_colour = "\x1b[48;5;112m";
             }
             temp.push_str(background_colour);
             match square {
@@ -186,7 +187,6 @@ impl Game {
             halfmove_clock: 0,
             fullmove_number: 1,
             selected_square: None,
-            possible_moves: None,
         };
 
         let (position, rest) = split_on(fen, ' ');
@@ -329,77 +329,9 @@ impl Piece {
 
 fn get_piece_index(square: &Square) -> Option<usize> {
     match square {
-        Square::Occupied(index) => Some(*index),
+        Square::Occupied(piece_index) => Some(*piece_index),
         Square::Empty => None,
     }
-}
-
-fn get_possible_moves(piece: &Piece, game: &mut Game) -> Option<Vec<PiecePosition>> {
-    let mut possible_moves = Vec::new();
-    let onebit_index = bit_scan(piece.position);
-    match piece.piece_type {
-        PieceType::Pawn => {
-            if piece.colour == Colour::White {
-                possible_moves.push(piece.position << 8);
-                if onebit_index / 8 + 1 == 2 {
-                    possible_moves.push(piece.position << 16);
-                }
-            } else {
-                possible_moves.push(piece.position >> 8);
-                if onebit_index / 8 + 1 == 7 {
-                    possible_moves.push(piece.position >> 16);
-                }
-            }
-        }
-        PieceType::Bishop => {}
-        PieceType::Knight => {
-            if onebit_index % 8 > 0 {
-                possible_moves.push(piece.position << 15);
-                possible_moves.push(piece.position >> 17);
-            }
-            if onebit_index % 8 > 1 {
-                possible_moves.push(piece.position << 6);
-                possible_moves.push(piece.position >> 10);
-            }
-            if onebit_index % 8 < 7 {
-                possible_moves.push(piece.position << 17);
-                possible_moves.push(piece.position >> 15);
-            }
-            if onebit_index % 8 < 6 {
-                possible_moves.push(piece.position << 10);
-                possible_moves.push(piece.position >> 6);
-            }
-        }
-        PieceType::Rook => {}
-        PieceType::Queen => {}
-        PieceType::King => {}
-
-    }
-
-    // pawns can't take forwards
-    possible_moves.retain(|possible_move| {
-        !game.pieces.iter().any(|p|
-            piece.piece_type != PieceType::Pawn && p.position == *possible_move && p.colour == game.active_colour
-                || piece.piece_type == PieceType::Pawn && p.position == *possible_move && p.colour != game.active_colour
-        )
-    });
-
-    // pawns take diagonally
-    if piece.piece_type == PieceType::Pawn {
-        for diagonal_piece in game.pieces.iter().filter(|p| {
-            let p_position = bit_scan(p.position);
-            if game.active_colour == Colour::White {
-                (onebit_index % 8 > 0 && p_position == onebit_index + 7) || (onebit_index % 8 < 7 && p_position == onebit_index + 9)
-            } else {
-                (onebit_index % 8 < 7 && p_position == onebit_index - 7) || (onebit_index % 8 > 0 && p_position == onebit_index - 9)
-
-            }
-        }) {
-            possible_moves.push(diagonal_piece.position);
-        }
-    }
-
-    Some(possible_moves)
 }
 
 pub fn game_loop(mut game: Game) {
@@ -411,12 +343,12 @@ pub fn game_loop(mut game: Game) {
         io::stdin().read_line(&mut start_input).unwrap();
         start_input = start_input.trim().to_string();
 
-        if let Some(start_position) = coords_to_position(&start_input) {
-            if let Some(start_square) = coords_to_bit(&start_input) {
+        if let Ok(start_position) = position_to_bit(&start_input) {
+
+            if let Some(start_square) = position_to_onebit_index(&start_input) {
+                println!("{}, {}", start_input, start_square);
                 if let Some(start_piece_index) = game.pieces.iter().position(|p| p.position == start_position && p.colour == game.active_colour) {
-                    let mut piece = game.pieces[start_piece_index].clone();
                     game.selected_square = Some(start_square);
-                    game.possible_moves = get_possible_moves(&piece, &mut game);
                     print_board(&game);
                     print!(
                         "Target coordinates: ",
@@ -426,35 +358,26 @@ pub fn game_loop(mut game: Game) {
                     io::stdin().read_line(&mut end_input).unwrap();
                     end_input = end_input.trim().to_string();
 
-                    if let Some(end_position) = coords_to_position(&end_input) {
-                        if let Some(end_square) = coords_to_bit(&end_input) {
-                            if game.possible_moves.unwrap().contains(&end_position) {
-                                if let Some(target_index) = game.pieces.iter_mut().position(|p| p.position == end_position && p.colour != game.active_colour) {
-                                    game.squares[end_square as usize] = Square::Empty;
-                                    game.pieces[target_index].position = 0;
-                                }
-                                game.selected_square = None;
-                                game.possible_moves = None;
-
-                                game.pieces[start_piece_index].position = end_position;
-                                let piece_index = get_piece_index(&game.squares[start_square as usize]);
-                                game.squares[start_square as usize] = Square::Empty;
-                                game.squares[end_square as usize] = Square::Occupied(piece_index.unwrap());
-                                if game.active_colour == Colour::Black {
-                                    game.fullmove_number += 1;
-                                }
-                                game.active_colour = match game.active_colour {
-                                    Colour::White => Colour::Black,
-                                    Colour::Black => Colour::White,
-                                };
-                                print_board(&game);
-                            } else {
-                                game.selected_square = None;
-                                game.possible_moves = None;
-                                print_board(&game);
-                                println!("{} -> {} is illegal", start_input, end_input);
-                                continue;
+                    if let Ok(end_position) = position_to_bit(&end_input) {
+                        if let Some(end_square) = position_to_onebit_index(&end_input) {
+                            if let Some(target_index) = game.pieces.iter_mut().position(|p| p.position == end_position && p.colour != game.active_colour) {
+                                game.squares[end_square as usize] = Square::Empty;
+                                game.pieces[target_index].position = 0;
                             }
+                            game.selected_square = None;
+
+                            game.pieces[start_piece_index].position = end_position;
+                            let piece_index = get_piece_index(&game.squares[start_square as usize]);
+                            game.squares[start_square as usize] = Square::Empty;
+                            game.squares[end_square as usize] = Square::Occupied(piece_index.unwrap());
+                            if game.active_colour == Colour::Black {
+                                game.fullmove_number += 1;
+                            }
+                            game.active_colour = match game.active_colour {
+                                Colour::White => Colour::Black,
+                                Colour::Black => Colour::White,
+                            };
+                            print_board(&game);
                         }
                     }
                 } else {
