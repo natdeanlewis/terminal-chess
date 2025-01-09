@@ -136,7 +136,7 @@ impl Game {
 
         for row in position.splitn(8, |ch| ch == '/') {
             piece_position -= 8;
-            let (pieces, squares) = parse_row(&row, piece_index, piece_position);
+            let (pieces, squares) = parse_FEN_row(&row, piece_index, piece_position);
             for p in pieces {
                 game.pieces.push(p);
                 piece_index += 1;
@@ -193,7 +193,7 @@ impl Game {
     }
 }
 
-fn parse_row(row: &str, mut piece_index: usize, mut piece_position: usize) -> (Vec<Piece>, VecDeque<Square>) {
+fn parse_FEN_row(row: &str, mut piece_index: usize, mut piece_position: usize) -> (Vec<Piece>, VecDeque<Square>) {
     let mut pieces = Vec::new();
     let mut squares = VecDeque::new();
 
@@ -284,7 +284,6 @@ pub fn game_loop(mut game: Game) {
 
         if let Ok(start_bit) = position_to_bit(&start_input) {
             if let Ok(start_onebit_index) = position_to_onebit_index(&start_input) {
-                println!("{}, {}", start_input, start_onebit_index);
                 if let Some(start_piece_index) = game.pieces.iter().position(|p| p.bit == start_bit && p.colour == game.active_colour) {
                     game.selected_square = Some(start_onebit_index);
                     print_board(&game);
