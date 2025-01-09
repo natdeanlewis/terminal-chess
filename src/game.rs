@@ -466,7 +466,7 @@ pub fn game_loop(mut game: Game) {
     }
 }
 
-pub fn print_board(game: &crate::game::Game) {
+pub fn print_board(game: &Game) {
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     println!("{}", game.to_string());
 }
