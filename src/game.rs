@@ -48,7 +48,6 @@ pub struct Game {
     pub en_passant: Option<u64>,
     pub halfmove_clock: usize,
     pub fullmove_number: usize,
-    pub selected_square: Option<usize>,
 }
 
 bitflags! {
@@ -78,10 +77,7 @@ impl Game {
                 temp.push_str(&format!("{} ", (i / 8) + 1));
             }
 
-            let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
-            if Some(i) == self.selected_square {
-                background_colour = "\x1b[48;5;70m";
-            }
+            let background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
             temp.push_str(background_colour);
             match square {
                 Square::Empty => {
@@ -113,7 +109,6 @@ impl Game {
             en_passant: None,
             halfmove_clock: 0,
             fullmove_number: 1,
-            selected_square: None,
         };
 
         let (position, rest) = split_on(fen, ' ');
@@ -263,6 +258,8 @@ fn get_piece_index(square: &Square) -> Option<usize> {
 }
 
 pub fn game_loop(mut game: Game) {
+    print_board(&game);
+
     loop {
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
         print!("Piece coordinates: ");
@@ -274,8 +271,6 @@ pub fn game_loop(mut game: Game) {
         if let Ok(start_bit) = coords_to_bit(&start_input) {
             let start_onebit_index = bit_to_onebit_index(start_bit);
             if let Some(start_piece_index) = game.pieces.iter().position(|p| p.bit == start_bit && p.colour == game.active_colour) {
-                game.selected_square = Some(start_onebit_index);
-                print_board(&game);
                 print!("Target coordinates: ");
                 io::stdout().flush().unwrap();
                 let mut end_input = String::new();
@@ -288,7 +283,6 @@ pub fn game_loop(mut game: Game) {
                         game.squares[end_onebit_index] = Square::Empty;
                         game.pieces[target_index].bit = 0;
                     }
-                    game.selected_square = None;
 
                     game.pieces[start_piece_index].bit = end_bit;
                     let piece_index = get_piece_index(&game.squares[start_onebit_index]);
