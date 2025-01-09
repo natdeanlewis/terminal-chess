@@ -299,15 +299,13 @@ pub fn game_loop(mut game: Game) {
 
                 if let Ok(end_bit) = coords_to_bit(&end_input) {
                     let end_onebit_index = bit_to_onebit_index(end_bit);
-                    if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit && p.colour != game.active_colour) {
-                        game.squares[end_onebit_index] = Square::Empty;
+                    if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
                         game.pieces[target_index].taken = true;
                     }
-
-                    game.pieces[start_piece_index].bit = end_bit;
                     let piece_index = get_piece_index(&game.squares[start_onebit_index]);
-                    game.squares[start_onebit_index] = Square::Empty;
                     game.squares[end_onebit_index] = Square::Occupied(piece_index.unwrap());
+                    game.squares[start_onebit_index] = Square::Empty;
+                    game.pieces[start_piece_index].bit = end_bit;
                     if game.active_colour == Colour::Black {
                         game.fullmove_number += 1;
                     }
