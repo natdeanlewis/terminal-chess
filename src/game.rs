@@ -78,6 +78,7 @@ pub struct Game {
     pub halfmove_clock: usize,
     pub fullmove_number: usize,
     possible_moves: Vec<Move>,
+    selected_piece_square: Option<usize>,
 }
 
 bitflags! {
@@ -108,10 +109,14 @@ impl Game {
             }
 
             let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
-            // possible move highlighting
-            // if let Some(_possible_move) = self.possible_moves.iter().find(|&m| m.to_square == i ) {
-            //     background_colour = "\x1b[42m";
-            // }
+            // Selected piece highlighting
+            if let Some(_possible_move) = self.possible_moves.iter().find(|&m| Some(i) == self.selected_piece_square) {
+                background_colour = "\x1b[48;5;70m";
+            }
+            // Possible move highlighting
+            if let Some(_possible_move) = self.possible_moves.iter().find(|&m| Some(m.from_square) == self.selected_piece_square &&  m.to_square == i) {
+                background_colour = "\x1b[48;5;112m";
+            }
 
             temp.push_str(background_colour);
             match square {
@@ -144,7 +149,8 @@ impl Game {
             en_passant: None,
             halfmove_clock: 0,
             fullmove_number: 1,
-            possible_moves: vec![]
+            possible_moves: vec![],
+            selected_piece_square: None,
         };
 
         let (position, rest) = split_on(fen, ' ');
@@ -319,6 +325,10 @@ pub fn game_loop(mut game: Game) {
             if let Ok(start_bit) = coords_to_bit(&start_input) {
                 let start_onebit_index = bit_to_onebit_index(start_bit);
                 if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
+                    game.selected_piece_square = Some(start_onebit_index);
+                    print_board(&game);
+                    game.selected_piece_square = None;
+
                     print!("Target coordinates: ");
                     io::stdout().flush().unwrap();
                     let mut end_input = String::new();
@@ -334,16 +344,22 @@ pub fn game_loop(mut game: Game) {
 
                         if game.possible_moves.contains(&input_move) {
                             make_move(&mut game, input_move);
-                        
                         } else {
+                            print_board(&game);
                             println!("Invalid move");
                         }
     
+                    } else {
+                        print_board(&game);
+                        println!("Invalid input");
                     }
                 } else {
                     print_board(&game);
                     println!("No {:?} piece at {}", game.active_colour, start_input);
                 }
+            } else {
+                print_board(&game);
+                println!("Invalid input");
             }
         }
         
@@ -429,7 +445,7 @@ fn make_move(game: &mut Game, move_to_make: Move) {
 
         game.possible_moves = generate_moves(game);
         print_board(&game);
-    }    
+    }
 }
 
 pub fn print_board(game: &Game) {
