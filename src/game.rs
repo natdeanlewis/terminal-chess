@@ -291,56 +291,81 @@ pub fn game_loop(mut game: Game) {
 
     loop {
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
-        print!("Piece coordinates: ");
-        io::stdout().flush().unwrap();
-        let mut start_input = String::new();
-        io::stdin().read_line(&mut start_input).unwrap();
-        start_input = start_input.trim().to_string();
-
-        if let Ok(start_bit) = coords_to_bit(&start_input) {
-            let start_onebit_index = bit_to_onebit_index(start_bit);
-            if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
-                print!("Target coordinates: ");
-                io::stdout().flush().unwrap();
-                let mut end_input = String::new();
-                io::stdin().read_line(&mut end_input).unwrap();
-                end_input = end_input.trim().to_string();
-
-                if let Ok(end_bit) = coords_to_bit(&end_input) {
-                    let end_onebit_index = bit_to_onebit_index(end_bit);
-                    let input_move = Move {
-                        from_square: start_onebit_index,
-                        to_square: end_onebit_index,
-                    };
-                    if game.possible_moves.contains(&input_move) {
-                        if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
-                            game.pieces[target_index].taken = true;
-                        }
-                        let piece_index = get_piece_index(&game.squares[start_onebit_index]);
-                        game.squares[end_onebit_index] = Square::Occupied(piece_index.unwrap());
-                        game.squares[start_onebit_index] = Square::Empty;
-                        game.pieces[start_piece_index].bit = end_bit;
-                        if game.active_colour == Colour::Black {
-                            game.fullmove_number += 1;
-                        }
-                        game.active_colour = match game.active_colour {
-                            Colour::White => Colour::Black,
-                            Colour::Black => Colour::White,
+        if game.active_colour == Colour::Black {
+            // let mut rng = thread_rng();
+            // let possible_moves = game.possible_moves;
+            // let random_index = rng.gen_range(0..possible_moves.len());
+            // let random_item = &possible_moves[random_index];
+            let random_move = Move {
+                from_square: 48,
+                to_square: 40,
+            };
+            make_move(&mut game, &random_move);
+        } else {
+            print!("Piece coordinates: ");
+            io::stdout().flush().unwrap();
+            let mut start_input = String::new();
+            io::stdin().read_line(&mut start_input).unwrap();
+            start_input = start_input.trim().to_string();
+    
+            if let Ok(start_bit) = coords_to_bit(&start_input) {
+                let start_onebit_index = bit_to_onebit_index(start_bit);
+                if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
+                    print!("Target coordinates: ");
+                    io::stdout().flush().unwrap();
+                    let mut end_input = String::new();
+                    io::stdin().read_line(&mut end_input).unwrap();
+                    end_input = end_input.trim().to_string();
+    
+                    if let Ok(end_bit) = coords_to_bit(&end_input) {
+                        let end_onebit_index = bit_to_onebit_index(end_bit);
+                        let input_move = Move {
+                            from_square: start_onebit_index,
+                            to_square: end_onebit_index,
                         };
 
-                        game.possible_moves = generate_moves(&mut game);
-                        print_board(&game);
-                    } else {
-                        println!("Invalid move");
+                        if game.possible_moves.contains(&input_move) {
+                            make_move(&mut game, &input_move);
+                        
+                        } else {
+                            println!("Invalid move");
+                        }
+    
                     }
-
+                } else {
+                    print_board(&game);
+                    println!("No {:?} piece at {}", game.active_colour, start_input);
                 }
-            } else {
-                print_board(&game);
-                println!("No {:?} piece at {}", game.active_colour, start_input);
             }
         }
+        
     }
+}
+
+fn make_move(game: &mut Game, move_to_make: &Move) {
+    let start_bit = onebit_index_to_bit(move_to_make.from_square);
+    let end_bit = onebit_index_to_bit(move_to_make.to_square);
+
+    if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
+        if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
+            game.pieces[target_index].taken = true;
+        }
+        let piece_index = get_piece_index(&game.squares[move_to_make.from_square]);
+        game.squares[move_to_make.to_square] = Square::Occupied(piece_index.unwrap());
+        game.squares[move_to_make.from_square] = Square::Empty;
+        game.pieces[start_piece_index].bit = end_bit;
+        if game.active_colour == Colour::Black {
+            game.fullmove_number += 1;
+        }
+        game.active_colour = match game.active_colour {
+            Colour::White => Colour::Black,
+            Colour::Black => Colour::White,
+        };
+    
+        game.possible_moves = generate_moves(game);
+        println!("{:?}, {:?}", game.pieces, game.squares);
+        print_board(&game);
+    }    
 }
 
 pub fn print_board(game: &Game) {
