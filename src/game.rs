@@ -27,6 +27,7 @@ use rand::seq::SliceRandom;
 // castling
 // en passant done
 // pawn promotions
+// tests
 // check
 // checkmate
 // stalemate
@@ -37,7 +38,6 @@ use rand::seq::SliceRandom;
 // search
 // minimax
 // alphabeta pruning
-// 
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Colour {
@@ -355,6 +355,34 @@ fn make_move(game: &mut Game, move_to_make: Move) {
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
     if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
+        // Pawn promotion
+        let promotion_row;
+        if game.active_colour == Colour::White {
+            promotion_row = 7;
+        } else {
+            promotion_row = 0;
+        }
+        if game.pieces[start_piece_index].piece_type == PieceType::Pawn && move_to_make.to_square / 8 == promotion_row {
+            // TODO: add options to move gen for CPU?
+            if game.active_colour == Colour::Black {
+                game.pieces[start_piece_index].piece_type = PieceType::Queen;
+            } else {
+                print!("Promote to? (Q for Queen, R for Rook, N for Knight, B for Bishop) ");
+                io::stdout().flush().unwrap();
+                let mut promotion_input = String::new();
+                io::stdin().read_line(&mut promotion_input).unwrap();
+                promotion_input = promotion_input.trim().to_string();
+                let promotion_piece_type = match promotion_input.chars().next().unwrap().to_ascii_lowercase() {
+                    'q' => PieceType::Queen,
+                    'r' => PieceType::Rook,
+                    'n' => PieceType::Knight,
+                    'b' => PieceType::Bishop,
+                    _ => {return}
+                };
+                game.pieces[start_piece_index].piece_type = promotion_piece_type;
+            }
+        }
+
         // En passant capture
         match game.en_passant {
             Some(en_passant_bit) => {
