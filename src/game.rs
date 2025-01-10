@@ -63,7 +63,7 @@ pub struct Piece {
     pub(crate) taken: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Square {
     Empty,
     Occupied(usize),
@@ -371,6 +371,38 @@ fn make_move(game: &mut Game, move_to_make: Move) {
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
     if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
+        // Castling
+        let king_side_rook_square;
+        let queen_side_rook_square;
+        if game.active_colour == Colour::White {
+            king_side_rook_square = 7;
+            queen_side_rook_square = 0;
+        } else {
+            king_side_rook_square = 63;
+            queen_side_rook_square = 56;
+        }
+        if game.pieces[start_piece_index].piece_type == PieceType::King && (move_to_make.to_square as isize - move_to_make.from_square as isize).abs() == 2 {
+            if move_to_make.to_square > move_to_make.from_square {
+                // King side rook
+                if let Some(rook) = game.pieces.iter_mut().find(|p| p.bit == onebit_index_to_bit(king_side_rook_square)) {
+                    rook.bit = onebit_index_to_bit(move_to_make.from_square + 1);
+                }
+                if let Some(rook_piece_index) = get_piece_index(&game.squares[move_to_make.from_square + 3]) {
+                    game.squares[move_to_make.from_square + 1] = Square::Occupied(rook_piece_index);
+                    game.squares[move_to_make.from_square + 3] = Square::Empty;
+                }
+            } else {
+                // Queen side rook
+                if let Some(rook) = game.pieces.iter_mut().find(|p| p.bit == onebit_index_to_bit(queen_side_rook_square)) {
+                    rook.bit = onebit_index_to_bit(move_to_make.from_square - 1);
+                }
+                if let Some(rook_piece_index) = get_piece_index(&game.squares[move_to_make.from_square - 4]) {
+                    game.squares[move_to_make.from_square - 1] = Square::Occupied(rook_piece_index);
+                    game.squares[move_to_make.from_square - 4] = Square::Empty;
+                }
+            }
+        }
+
         // Pawn promotion
         let promotion_row;
         if game.active_colour == Colour::White {
@@ -418,6 +450,7 @@ fn make_move(game: &mut Game, move_to_make: Move) {
             }
             _ => {}
         }
+
         // Standard capture
         if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
             game.pieces[target_index].taken = true;

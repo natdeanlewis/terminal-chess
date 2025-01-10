@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use crate::game::{Game, PieceType};
+use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::{bit_to_onebit_index, coords_to_onebit_index, onebit_index_to_bit};
 use crate::Colour;
 
@@ -52,6 +52,8 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
                     }
                     possible_moves = add_bishop_moves(from_square, possible_moves, king_squares_to_edges, game);
                     possible_moves = add_rook_moves(from_square, possible_moves, king_squares_to_edges, game);
+
+                    possible_moves = add_castle_moves(from_square, possible_moves, game);
                 }
             }
         }
@@ -71,6 +73,46 @@ fn offset_matches_row_offset(from_square: usize, offset: isize, row_offset: isiz
     }
     let from_row =  from_square / 8;
     return target_row - from_row as isize == row_offset;
+}
+
+fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game) -> Vec<Move> {
+    println!("{:?}", game.castling_rights);
+    if game.active_colour == Colour::White {
+        if game.castling_rights.contains(CastlingRights::WHITEKINGSIDE) {
+            if (5..7).all(|i| game.squares[i] == Square::Empty) {
+                possible_moves.push(Move {
+                    from_square: from_square,
+                    to_square: from_square + 2,
+                });
+            }
+        }
+        if game.castling_rights.contains(CastlingRights::WHITEQUEENSIDE) {
+            if (1..4).all(|i| game.squares[i] == Square::Empty) {
+                possible_moves.push(Move {
+                    from_square: from_square,
+                    to_square: from_square - 2,
+                });
+            }
+        }
+    } else {
+        if game.castling_rights.contains(CastlingRights::BLACKKINGSIDE) {
+            if (61..63).all(|i| game.squares[i] == Square::Empty) {
+                possible_moves.push(Move {
+                    from_square: from_square,
+                    to_square: from_square + 2,
+                });
+            }        }
+        if game.castling_rights.contains(CastlingRights::BLACKQUEENSIDE) {
+            if (57..60).all(|i| game.squares[i] == Square::Empty) {
+                possible_moves.push(Move {
+                    from_square: from_square,
+                    to_square: from_square - 2,
+                });
+            }
+        }
+    }
+
+    possible_moves
 }
 fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game) -> Vec<Move> {
     let increment: isize;
