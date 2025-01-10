@@ -354,9 +354,28 @@ fn make_move(game: &mut Game, move_to_make: Move) {
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
     if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
+        match game.en_passant {
+            Some(en_passant_bit) => {
+                if end_bit == en_passant_bit && game.pieces[start_piece_index].piece_type == PieceType::Pawn {
+                    let captured_piece_square;
+                    if game.active_colour == Colour::White {
+                        captured_piece_square = move_to_make.to_square - 8;
+                    } else {
+                        captured_piece_square = move_to_make.to_square + 8;
+                    }
+                    let target_bit = onebit_index_to_bit(captured_piece_square);
+                    if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == target_bit) {
+                        game.pieces[target_index].taken = true;
+                        game.squares[captured_piece_square] = Square::Empty;
+                    }
+                }
+            }
+            _ => {}
+        }
         if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
             game.pieces[target_index].taken = true;
         }
+
         let piece_index = get_piece_index(&game.squares[move_to_make.from_square]);
         game.squares[move_to_make.to_square] = Square::Occupied(piece_index.unwrap());
         game.squares[move_to_make.from_square] = Square::Empty;
@@ -368,7 +387,7 @@ fn make_move(game: &mut Game, move_to_make: Move) {
             Colour::White => Colour::Black,
             Colour::Black => Colour::White,
         };
-    
+
         game.possible_moves = generate_moves(game);
         print_board(&game);
     }    

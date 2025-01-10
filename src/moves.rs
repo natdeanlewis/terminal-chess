@@ -1,7 +1,7 @@
 use std::cmp::min;
 
 use crate::game::{Game, PieceType};
-use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
+use crate::utils::{bit_to_onebit_index, coords_to_onebit_index, onebit_index_to_bit};
 use crate::Colour;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -129,6 +129,39 @@ fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game
                 to_square: target_square as usize,
             })
         }
+    }
+
+    //en passant
+    match game.en_passant {
+        Some(en_passant) => {
+            let en_passant_onebit_index = bit_to_onebit_index(en_passant);
+            // Left diagonal
+            if from_square % 8 > 0 {
+                let left_diagonal_target_square = from_square as isize + increment - 1;
+
+                if left_diagonal_target_square == en_passant_onebit_index as isize {
+                    possible_moves.push(Move {
+                        from_square: from_square,
+                        to_square: en_passant_onebit_index,
+                    })
+                }
+            }
+
+            // Right diagonal
+            if from_square % 8 < 7 {
+                let left_diagonal_target_square = from_square as isize + increment + 1;
+
+                if left_diagonal_target_square == en_passant_onebit_index as isize {
+                    possible_moves.push(Move {
+                        from_square: from_square,
+                        to_square: en_passant_onebit_index,
+                    })
+                }
+            }
+
+            println!("{:?}", game.en_passant)
+        },
+        None => println!("{:?}", game.en_passant),
     }
 
     possible_moves
