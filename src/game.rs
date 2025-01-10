@@ -4,6 +4,7 @@ use std::io;
 use std::io::Write;
 use crate::utils::*;
 use crate::moves::*;
+use rand::seq::SliceRandom;
 
 // e.g.s:
 // coords: e4
@@ -17,18 +18,25 @@ use crate::moves::*;
 // and then use these to only allow legal moves.
 // later use these for the engine to calculate good and bad moves
 // use bitboard per piece type?
-// knight
-// king
-// rook
-// bishop
-// queen
-// pawn
+// knight done
+// king done
+// rook done
+// bishop done
+// queen done
+// pawn done
 // castling
 // en passant
 // check
 // checkmate
 // stalemate
 // repetition draws
+// optimisation
+// board evaluation
+// positional skewing
+// search
+// minimax
+// alphabeta pruning
+// 
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Colour {
@@ -99,9 +107,10 @@ impl Game {
             }
 
             let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
-            if let Some(_possible_move) = self.possible_moves.iter().find(|&m| m.to_square == i ) {
-                background_colour = "\x1b[42m";
-            }
+            // possible move highlighting
+            // if let Some(_possible_move) = self.possible_moves.iter().find(|&m| m.to_square == i ) {
+            //     background_colour = "\x1b[42m";
+            // }
 
             temp.push_str(background_colour);
             match square {
@@ -292,15 +301,13 @@ pub fn game_loop(mut game: Game) {
     loop {
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
         if game.active_colour == Colour::Black {
-            // let mut rng = thread_rng();
-            // let possible_moves = game.possible_moves;
-            // let random_index = rng.gen_range(0..possible_moves.len());
-            // let random_item = &possible_moves[random_index];
-            let random_move = Move {
-                from_square: 48,
-                to_square: 40,
-            };
-            make_move(&mut game, &random_move);
+            if let Some(random_move) = game.possible_moves.choose(&mut rand::thread_rng()) {
+                let random_move = *random_move;
+                make_move(&mut game, random_move);
+            } else {
+                println!{"No possible moves"};
+                break
+            }
         } else {
             print!("Piece coordinates: ");
             io::stdout().flush().unwrap();
@@ -310,7 +317,7 @@ pub fn game_loop(mut game: Game) {
     
             if let Ok(start_bit) = coords_to_bit(&start_input) {
                 let start_onebit_index = bit_to_onebit_index(start_bit);
-                if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
+                if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
                     print!("Target coordinates: ");
                     io::stdout().flush().unwrap();
                     let mut end_input = String::new();
@@ -325,7 +332,7 @@ pub fn game_loop(mut game: Game) {
                         };
 
                         if game.possible_moves.contains(&input_move) {
-                            make_move(&mut game, &input_move);
+                            make_move(&mut game, input_move);
                         
                         } else {
                             println!("Invalid move");
@@ -342,7 +349,7 @@ pub fn game_loop(mut game: Game) {
     }
 }
 
-fn make_move(game: &mut Game, move_to_make: &Move) {
+fn make_move(game: &mut Game, move_to_make: Move) {
     let start_bit = onebit_index_to_bit(move_to_make.from_square);
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
@@ -363,7 +370,6 @@ fn make_move(game: &mut Game, move_to_make: &Move) {
         };
     
         game.possible_moves = generate_moves(game);
-        println!("{:?}, {:?}", game.pieces, game.squares);
         print_board(&game);
     }    
 }

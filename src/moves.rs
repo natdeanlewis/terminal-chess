@@ -4,7 +4,7 @@ use crate::game::{Game, PieceType};
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 use crate::Colour;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Move {
     pub(crate) from_square: usize,
     pub(crate) to_square: usize,
