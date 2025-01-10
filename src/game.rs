@@ -24,9 +24,9 @@ use rand::seq::SliceRandom;
 // bishop done
 // queen done
 // pawn done
-// castling
+// castling done
 // en passant done
-// pawn promotions
+// pawn promotions done
 // tests
 // check
 // checkmate
