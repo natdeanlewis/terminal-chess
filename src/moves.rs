@@ -91,6 +91,18 @@ fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game
             from_square: from_square,
             to_square: target_square as usize,
         });
+
+        // Two squares forward
+        if from_square / 8 + 1 == start_row {
+            target_square += increment;
+            target_bit = onebit_index_to_bit(target_square as usize);
+            if game.pieces.iter().all(|p| p.taken || p.bit != target_bit) {
+                possible_moves.push(Move {
+                    from_square: from_square,
+                    to_square: target_square as usize,
+                })
+            }
+        }
     }
 
     // Left diagonal capture
@@ -116,18 +128,6 @@ fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game
                 from_square: from_square,
                 to_square: right_diagonal_target_square as usize,
             });
-        }
-    }
-
-    // Two squares forward
-    if from_square / 8 + 1 == start_row {
-        target_square += increment;
-        target_bit = onebit_index_to_bit(target_square as usize);
-        if game.pieces.iter().all(|p| p.taken || p.bit != target_bit) {
-            possible_moves.push(Move {
-                from_square: from_square,
-                to_square: target_square as usize,
-            })
         }
     }
 

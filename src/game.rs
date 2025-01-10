@@ -25,7 +25,7 @@ use rand::seq::SliceRandom;
 // queen done
 // pawn done
 // castling
-// en passant
+// en passant - don't allow double pawn move if there's a piece in front
 // check
 // checkmate
 // stalemate
