@@ -61,7 +61,7 @@ pub fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
     possible_moves
 }
 pub fn generate_moves(game: &mut Game) -> Vec<Move> {
-    let mut possible_moves = generate_pseudolegal_moves(game);
+    let possible_moves = generate_pseudolegal_moves(game);
 
     // Only include moves that don't result in a check on the active colour
     let mut new_possible_moves = vec![];
