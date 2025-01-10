@@ -76,7 +76,6 @@ fn offset_matches_row_offset(from_square: usize, offset: isize, row_offset: isiz
 }
 
 fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game) -> Vec<Move> {
-    println!("{:?}", game.castling_rights);
     if game.active_colour == Colour::White {
         if game.castling_rights.contains(CastlingRights::WHITEKINGSIDE) {
             if (5..7).all(|i| game.squares[i] == Square::Empty) {

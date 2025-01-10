@@ -378,7 +378,6 @@ fn make_move(game: &mut Game, move_to_make: Move) {
                 Colour::White => {
                     game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
                     game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
-                    println!("{:?}", game.castling_rights);
                 }
                 Colour::Black => {
                     game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
@@ -422,19 +421,15 @@ fn make_move(game: &mut Game, move_to_make: Move) {
             match start_piece_index {
                 0 => {
                     game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
-                    println!("{:?}", game.castling_rights);
                 }
                 7 => {
                     game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
-                    println!("{:?}", game.castling_rights);
                 }
                 56 => {
                     game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE);
-                    println!("{:?}", game.castling_rights);
                 }
                 63 => {
                     game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
-                    println!("{:?}", game.castling_rights);
                 }
                 _ => {}
             }
@@ -498,19 +493,15 @@ fn make_move(game: &mut Game, move_to_make: Move) {
                 match captured_piece_square {
                     0 => {
                         game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
-                        println!("{:?}", game.castling_rights);
                     }
                     7 => {
                         game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
-                        println!("{:?}", game.castling_rights);
                     }
                     56 => {
                         game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE);
-                        println!("{:?}", game.castling_rights);
                     }
                     63 => {
                         game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
-                        println!("{:?}", game.castling_rights);
                     }
                     _ => {}
                 }
