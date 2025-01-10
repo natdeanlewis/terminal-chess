@@ -1,7 +1,6 @@
 use std::cmp::min;
-
 use crate::game::{CastlingRights, Game, PieceType, Square};
-use crate::utils::{bit_to_onebit_index, coords_to_onebit_index, onebit_index_to_bit};
+use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 use crate::Colour;
 
 #[derive(Debug, PartialEq, Clone, Copy)]

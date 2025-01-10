@@ -27,6 +27,7 @@ use rand::seq::SliceRandom;
 // castling done
 // en passant done
 // pawn promotions done
+// algebraic move notation?
 // tests
 // check
 // checkmate
@@ -110,7 +111,7 @@ impl Game {
 
             let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
             // Selected piece highlighting
-            if let Some(_possible_move) = self.possible_moves.iter().find(|&m| Some(i) == self.selected_piece_square) {
+            if Some(i) == self.selected_piece_square {
                 background_colour = "\x1b[48;5;112m";
             }
             // Possible move highlighting
@@ -449,7 +450,7 @@ fn make_move(game: &mut Game, move_to_make: Move) {
             if game.active_colour == Colour::Black {
                 game.pieces[start_piece_index].piece_type = PieceType::Queen;
             } else {
-                print!("Promote to? (Q for Queen, R for Rook, N for Knight, B for Bishop) ");
+                print!("Piece to promote to (Q for Queen, R for Rook, N for Knight, B for Bishop): ");
                 io::stdout().flush().unwrap();
                 let mut promotion_input = String::new();
                 io::stdin().read_line(&mut promotion_input).unwrap();
