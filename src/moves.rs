@@ -1,5 +1,5 @@
 use std::cmp::min;
-use crate::game::{CastlingRights, Game, PieceType, Square};
+use crate::game::{make_move, CastlingRights, Game, PieceType, Square};
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 use crate::Colour;
 
@@ -16,7 +16,7 @@ fn squares_to_edges(bit: u64) -> [usize; 4] {
     [8 - row_num, 8 - column_num, row_num - 1, column_num - 1]
 }
 
-pub fn generate_moves(game: &mut Game) -> Vec<Move> {
+pub fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
     let mut possible_moves: Vec<Move> = Vec::new();
     for piece in &game.pieces {
         if piece.colour == game.active_colour && piece.taken == false {
@@ -60,7 +60,37 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
 
     possible_moves
 }
+pub fn generate_moves(game: &mut Game) -> Vec<Move> {
+    let mut possible_moves = generate_pseudolegal_moves(game);
 
+    // Only include moves that don't result in a check on the active colour
+    let mut new_possible_moves = vec![];
+
+    for possible_move in possible_moves {
+
+        let mut new_game = game.clone();
+
+        make_move(&mut new_game, possible_move);
+
+        if let Some(king) = new_game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != new_game.active_colour) {
+            let king_square = bit_to_onebit_index(king.bit);
+
+            if !inactive_colour_in_check(&mut new_game, king_square) {
+                new_possible_moves.push(possible_move);
+            }
+        }
+    }
+
+    new_possible_moves
+}
+
+fn inactive_colour_in_check(game: &mut Game, king_square: usize) -> bool {
+    let next_possible_moves= generate_pseudolegal_moves(game);
+    if next_possible_moves.iter().any(|m| m.to_square == king_square) {
+        return true;
+    }
+    false
+}
 fn offset_matches_row_offset(from_square: usize, offset: isize, row_offset: isize) -> bool {
     let target_square = from_square as isize + offset;
     if target_square < 0 {

@@ -64,12 +64,13 @@ pub struct Piece {
     pub(crate) taken: bool,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Square {
     Empty,
     Occupied(usize),
 }
 
+#[derive(Clone)]
 pub struct Game {
     pub pieces: Vec<Piece>,
     pub squares: Vec<Square>,
@@ -83,7 +84,7 @@ pub struct Game {
 }
 
 bitflags! {
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub struct CastlingRights: u8 {
         const NONE = 0;
         const WHITEKINGSIDE = 1 << 0;
@@ -313,11 +314,19 @@ pub fn game_loop(mut game: Game) {
             if let Some(random_move) = game.possible_moves.choose(&mut rand::thread_rng()) {
                 let random_move = *random_move;
                 make_move(&mut game, random_move);
+                game.possible_moves = generate_moves(&mut game);
+                print_board(&game);
             } else {
-                println!{"No possible moves"};
+                // TODO: check for stalemate here
+                println!{"Game over"};
                 break
             }
         } else {
+            if game.possible_moves.len() == 0 {
+                // TODO: check for stalemate here
+                println!("Game over");
+                break
+            }
             print!("Piece coordinates: ");
             io::stdout().flush().unwrap();
             let mut start_input = String::new();
@@ -346,6 +355,9 @@ pub fn game_loop(mut game: Game) {
 
                         if game.possible_moves.contains(&input_move) {
                             make_move(&mut game, input_move);
+                            game.possible_moves = generate_moves(&mut game);
+                            print_board(&game);
+
                         } else {
                             print_board(&game);
                             println!("Invalid move");
@@ -368,7 +380,7 @@ pub fn game_loop(mut game: Game) {
     }
 }
 
-fn make_move(game: &mut Game, move_to_make: Move) {
+pub fn make_move(game: &mut Game, move_to_make: Move) {
     let start_bit = onebit_index_to_bit(move_to_make.from_square);
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
@@ -530,9 +542,6 @@ fn make_move(game: &mut Game, move_to_make: Move) {
             Colour::White => Colour::Black,
             Colour::Black => Colour::White,
         };
-
-        game.possible_moves = generate_moves(game);
-        print_board(&game);
     }
 }
 
