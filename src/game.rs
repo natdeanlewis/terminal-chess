@@ -51,7 +51,7 @@ pub struct Piece {
     pub(crate) bit: u64,
     pub(crate) colour: Colour,
     pub(crate) piece_type: PieceType,
-    taken: bool,
+    pub(crate) taken: bool,
 }
 
 #[derive(Debug)]
@@ -68,6 +68,7 @@ pub struct Game {
     pub en_passant: Option<u64>,
     pub halfmove_clock: usize,
     pub fullmove_number: usize,
+    possible_moves: Vec<Move>,
 }
 
 bitflags! {
@@ -97,7 +98,11 @@ impl Game {
                 temp.push_str(&format!("{} ", (i / 8) + 1));
             }
 
-            let background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
+            let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
+            if let Some(_possible_move) = self.possible_moves.iter().find(|&m| m.to_square == i ) {
+                background_colour = "\x1b[42m";
+            }
+
             temp.push_str(background_colour);
             match square {
                 Square::Empty => {
@@ -129,6 +134,7 @@ impl Game {
             en_passant: None,
             halfmove_clock: 0,
             fullmove_number: 1,
+            possible_moves: vec![]
         };
 
         let (position, rest) = split_on(fen, ' ');
@@ -279,11 +285,11 @@ fn get_piece_index(square: &Square) -> Option<usize> {
 }
 
 pub fn game_loop(mut game: Game) {
+    game.possible_moves = generate_moves(&mut game);
+
     print_board(&game);
 
     loop {
-        let possible_moves = generate_moves(&mut game);
-
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
         print!("Piece coordinates: ");
         io::stdout().flush().unwrap();
@@ -306,7 +312,7 @@ pub fn game_loop(mut game: Game) {
                         from_square: start_onebit_index,
                         to_square: end_onebit_index,
                     };
-                    if possible_moves.contains(&input_move) {
+                    if game.possible_moves.contains(&input_move) {
                         if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
                             game.pieces[target_index].taken = true;
                         }
@@ -321,6 +327,8 @@ pub fn game_loop(mut game: Game) {
                             Colour::White => Colour::Black,
                             Colour::Black => Colour::White,
                         };
+
+                        game.possible_moves = generate_moves(&mut game);
                         print_board(&game);
                     } else {
                         println!("Invalid move");
