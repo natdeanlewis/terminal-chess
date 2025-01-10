@@ -387,6 +387,8 @@ fn make_move(game: &mut Game, move_to_make: Move) {
         if game.pieces[start_piece_index].piece_type == PieceType::Pawn && (move_to_make.to_square as isize - move_to_make.from_square as isize).abs() == 16 {
             let en_passant_square = (move_to_make.from_square + move_to_make.to_square) / 2;
             game.en_passant = Some(onebit_index_to_bit(en_passant_square));
+        } else {
+            game.en_passant = None;
         }
 
         if game.active_colour == Colour::Black {
