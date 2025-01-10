@@ -158,10 +158,8 @@ fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game
                     })
                 }
             }
-
-            println!("{:?}", game.en_passant)
-        },
-        None => println!("{:?}", game.en_passant),
+        }
+        _ => {}
     }
 
     possible_moves
