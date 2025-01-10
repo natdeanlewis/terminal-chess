@@ -26,6 +26,7 @@ use rand::seq::SliceRandom;
 // pawn done
 // castling
 // en passant done
+// pawn promotions
 // check
 // checkmate
 // stalemate
