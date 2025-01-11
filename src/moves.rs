@@ -60,8 +60,9 @@ pub fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
 
     possible_moves
 }
+
 pub fn generate_moves(game: &mut Game) -> Vec<Move> {
-    let mut possible_moves = generate_pseudolegal_moves(game);
+    let possible_moves = generate_pseudolegal_moves(game);
 
     // Only include moves that don't result in a check on the active colour
     let mut new_possible_moves = vec![];
@@ -84,13 +85,14 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     new_possible_moves
 }
 
-fn inactive_colour_in_check(game: &mut Game, king_square: usize) -> bool {
+pub fn inactive_colour_in_check(game: &mut Game, king_square: usize) -> bool {
     let next_possible_moves= generate_pseudolegal_moves(game);
     if next_possible_moves.iter().any(|m| m.to_square == king_square) {
         return true;
     }
     false
 }
+
 fn offset_matches_row_offset(from_square: usize, offset: isize, row_offset: isize) -> bool {
     let target_square = from_square as isize + offset;
     if target_square < 0 {

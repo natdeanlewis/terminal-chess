@@ -29,9 +29,9 @@ use rand::seq::SliceRandom;
 // pawn promotions done
 // algebraic move notation?
 // tests
-// check
-// checkmate
-// stalemate
+// check done
+// checkmate done
+// stalemate done
 // repetition draws
 // optimisation
 // board evaluation
@@ -39,6 +39,8 @@ use rand::seq::SliceRandom;
 // search
 // minimax
 // alphabeta pruning
+// play multiple colours
+// mouse gui
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Colour {
@@ -81,6 +83,7 @@ pub struct Game {
     pub fullmove_number: usize,
     possible_moves: Vec<Move>,
     selected_piece_square: Option<usize>,
+    colour_in_check: Option<Colour>,
 }
 
 bitflags! {
@@ -99,6 +102,7 @@ impl Game {
     pub fn initialize() -> Game {
         // let ambiguous_fen_str = "3r3r/2k5/8/R7/4Q2Q/8/8/RK5Q w KQkq - 0 1";
         let starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        // let endgame_fen_str: &str = "1k6/8/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
         Game::read_FEN(starting_fen_str)
     }
 
@@ -155,6 +159,7 @@ impl Game {
             fullmove_number: 1,
             possible_moves: vec![],
             selected_piece_square: None,
+            colour_in_check: None
         };
 
         let (position, rest) = split_on(fen, ' ');
@@ -218,6 +223,7 @@ impl Game {
             Ok(num) => game.fullmove_number = num,
             Err(_) => panic!("Invalid fullmove: '{}'", fullmove_number),
         }
+        // TODO: set colour_in_check if in check
         game
     }
 }
@@ -304,7 +310,7 @@ fn get_piece_index(square: &Square) -> Option<usize> {
     }
 }
 
-fn move_to_algebraic_notation(game: &Game, possible_move: Move) -> Option<String> {
+fn move_to_unambiguous_algebraic_notation(game: &Game, possible_move: Move) -> Option<String> {
     let from_bit = onebit_index_to_bit(possible_move.from_square);
     if let Some(piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == from_bit && p.colour == game.active_colour) {
         let mut algebraic_move = "".to_owned();
@@ -316,7 +322,29 @@ fn move_to_algebraic_notation(game: &Game, possible_move: Move) -> Option<String
             PieceType::Queen => algebraic_move.push_str("q"),
             PieceType::Pawn => (),
         }
-        
+        let from_coords = onebit_index_to_coords(possible_move.from_square);
+        let to_coords = onebit_index_to_coords(possible_move.to_square);
+        algebraic_move.push_str(&from_coords);
+        algebraic_move.push_str(&to_coords);
+        Some(algebraic_move)
+
+    } else {
+        return None
+    }
+}
+
+fn move_to_ambiguous_algebraic_notation(game: &Game, possible_move: Move) -> Option<String> {
+    let from_bit = onebit_index_to_bit(possible_move.from_square);
+    if let Some(piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == from_bit && p.colour == game.active_colour) {
+        let mut algebraic_move = "".to_owned();
+        match piece.piece_type {
+            PieceType::Bishop => algebraic_move.push_str("b"),
+            PieceType::Knight => algebraic_move.push_str("n"),
+            PieceType::Rook => algebraic_move.push_str("r"),
+            PieceType::King => algebraic_move.push_str("k"),
+            PieceType::Queen => algebraic_move.push_str("q"),
+            PieceType::Pawn => (),
+        }
         let to_coords = onebit_index_to_coords(possible_move.to_square);
         algebraic_move.push_str(&to_coords);
         Some(algebraic_move)
@@ -327,14 +355,22 @@ fn move_to_algebraic_notation(game: &Game, possible_move: Move) -> Option<String
 }
 
 fn parse_algebraic_move(move_input: &str, game: &Game) -> Option<Move> {
-    println!("{:?}", game.pieces);
+    let mut possible_matches = vec![];
     for possible_move in game.possible_moves.clone() {
-        println!{"{:?}, {:?}", move_to_algebraic_notation(game, possible_move), move_input}
-        if move_to_algebraic_notation(game, possible_move) == Some(move_input.to_owned().to_ascii_lowercase()) {
-            return Some(possible_move)
+        if move_to_ambiguous_algebraic_notation(game, possible_move) == Some(move_input.to_owned().to_ascii_lowercase()) {
+            possible_matches.push(possible_move);
+        }
+        if move_to_unambiguous_algebraic_notation(game, possible_move) == Some(move_input.to_owned().to_ascii_lowercase()) {
+            possible_matches.push(possible_move);
         }
     }
-    println!("Invalid move");
+    if possible_matches.len() == 1 {
+        return Some(possible_matches[0])
+    } else if possible_matches.len() > 1 {
+        println!("Move is ambiguous, please double disambiguate (e.g. Qh4e1)");
+        return None
+    }
+    println!("Invalid move, use algebraic notation without indication of captures (e.g. Nc3)");
     return None
 }
 
@@ -353,17 +389,25 @@ pub fn game_loop(mut game: Game) {
                 print_board(&game);
             } else {
                 // TODO: check for stalemate here
-                println!{"Game over"};
+                if game.colour_in_check == Some(game.active_colour) {
+                    println!{"Checkmate! White wins."};
+                } else {
+                    println!{"Stalemate!"};
+                }
                 break
             }
         } else {
             if game.possible_moves.len() == 0 {
                 // TODO: check for stalemate here
-                println!("Game over");
+                if game.colour_in_check == Some(game.active_colour) {
+                    println!{"Checkmate! Black wins."};
+                } else {
+                    println!{"Stalemate!"};
+                }
                 break
             }
 
-            print!("Your move (in algebraic notation): ");
+            print!("Enter move: ");
             io::stdout().flush().unwrap();
             let mut move_input = String::new();
             io::stdin().read_line(&mut move_input).unwrap();
@@ -376,23 +420,13 @@ pub fn game_loop(mut game: Game) {
                     game.selected_piece_square = Some(start_onebit_index);
                     print_board(&game);
                     game.selected_piece_square = None;
-
-                    if game.possible_moves.contains(&input_move) {
-                        make_move(&mut game, input_move);
-                        game.possible_moves = generate_moves(&mut game);
-                        print_board(&game);
-
-                    } else {
-                        print_board(&game);
-                        println!("Illegal move");
-                    }
+                    make_move(&mut game, input_move);
+                    game.possible_moves = generate_moves(&mut game);
+                    print_board(&game);
                 } else {
                     print_board(&game);
-                    println!("Invalid input");
+                    println!("Invalid move");
                 }
-            } else {
-                print_board(&game);
-                println!{"Invalid input"}
             }
         }
         
@@ -583,14 +617,26 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
         game.en_passant = None;
     }
 
+    let inactive_colour = match game.active_colour {
+        Colour::White => Colour::Black,
+        Colour::Black => Colour::White,
+    }; 
+
+    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != game.active_colour) {
+        let king_square = bit_to_onebit_index(king.bit);
+
+        if inactive_colour_in_check(game, king_square) {
+            game.colour_in_check = Some(inactive_colour);
+        } else {
+            game.colour_in_check = None
+        }
+    }
+
     if game.active_colour == Colour::Black {
         game.fullmove_number += 1;
     }
 
-    game.active_colour = match game.active_colour {
-        Colour::White => Colour::Black,
-        Colour::Black => Colour::White,
-    };
+    game.active_colour = inactive_colour;
 }
 
 pub fn print_board(game: &Game) {
