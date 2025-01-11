@@ -26,12 +26,13 @@ use crate::moves::*;
 // castling done
 // en passant done
 // pawn promotions done
-// algebraic move notation? doneish
+// algebraic move notation? done
 // alert when check?
-// tests
 // check done
 // checkmate done
 // stalemate done
+// tests
+// perft
 // repetition draws
 // optimisation
 // board evaluation
@@ -41,6 +42,7 @@ use crate::moves::*;
 // alphabeta pruning
 // play multiple colours
 // mouse gui
+// full algebraic move notation?
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Colour {
@@ -103,6 +105,7 @@ impl Game {
         // let ambiguous_fen_str = "3r3r/2k5/8/R7/4Q2Q/8/8/RK5Q w KQkq - 0 1";
         let starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         // let endgame_fen_str: &str = "1k6/8/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
+        // let losing_fen_str: &str = "1k6/qq3q2/8/8/8/8/8/4K2Q w KQkq - 0 1";
         Game::read_FEN(starting_fen_str)
     }
 
@@ -434,6 +437,7 @@ static KING_MIDDLEGAME: [i32; 64] =
  20, 20,  0,  0,  0,  0, 20, 20,
  20, 30, 10,  0,  0, 10, 30, 20];
 
+ // TODO: incorporate this
 static KING_ENDGAME: [i32; 64] =
 [-50,-40,-30,-20,-20,-30,-40,-50,
 -30,-20,-10,  0,  0,-10,-20,-30,
@@ -486,7 +490,6 @@ pub fn game_loop(mut game: Game) {
     print_board(&game);
 
     loop {
-        println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
         if game.active_colour == Colour::Black {
             if game.possible_moves.len() == 0 {
                 if game.colour_in_check == Some(game.active_colour) {
@@ -496,6 +499,13 @@ pub fn game_loop(mut game: Game) {
                 }
                 break
             }
+            if game.colour_in_check == Some(game.active_colour) {
+                println!("Check!");
+            }
+            
+            println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
+            
+    
             let mut best_move: Option<Move> = None;
             let mut best_evaluation: f64 = 0.0;
             for possible_move in &game.possible_moves {
@@ -520,6 +530,13 @@ pub fn game_loop(mut game: Game) {
                 }
                 break
             }
+            if game.colour_in_check == Some(game.active_colour) {
+                println!("Check!");
+            }
+            
+            println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
+            
+    
 
             print!("Enter move: ");
             io::stdout().flush().unwrap();
