@@ -1,6 +1,5 @@
 use bitflags::bitflags;
 use std::collections::VecDeque;
-use std::f32::consts::E;
 use std::io;
 use std::io::Write;
 use crate::utils::*;
@@ -98,6 +97,7 @@ bitflags! {
 
 impl Game {
     pub fn initialize() -> Game {
+        // let ambiguous_fen_str = "3r3r/2k5/8/R7/4Q2Q/8/8/RK5Q w KQkq - 0 1";
         let starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         Game::read_FEN(starting_fen_str)
     }
@@ -304,6 +304,40 @@ fn get_piece_index(square: &Square) -> Option<usize> {
     }
 }
 
+fn move_to_algebraic_notation(game: &Game, possible_move: Move) -> Option<String> {
+    let from_bit = onebit_index_to_bit(possible_move.from_square);
+    if let Some(piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == from_bit && p.colour == game.active_colour) {
+        let mut algebraic_move = "".to_owned();
+        match piece.piece_type {
+            PieceType::Bishop => algebraic_move.push_str("b"),
+            PieceType::Knight => algebraic_move.push_str("n"),
+            PieceType::Rook => algebraic_move.push_str("r"),
+            PieceType::King => algebraic_move.push_str("k"),
+            PieceType::Queen => algebraic_move.push_str("q"),
+            PieceType::Pawn => (),
+        }
+        
+        let to_coords = onebit_index_to_coords(possible_move.to_square);
+        algebraic_move.push_str(&to_coords);
+        Some(algebraic_move)
+
+    } else {
+        return None
+    }
+}
+
+fn parse_algebraic_move(move_input: &str, game: &Game) -> Option<Move> {
+    println!("{:?}", game.pieces);
+    for possible_move in game.possible_moves.clone() {
+        println!{"{:?}, {:?}", move_to_algebraic_notation(game, possible_move), move_input}
+        if move_to_algebraic_notation(game, possible_move) == Some(move_input.to_owned().to_ascii_lowercase()) {
+            return Some(possible_move)
+        }
+    }
+    println!("Invalid move");
+    return None
+}
+
 pub fn game_loop(mut game: Game) {
     game.possible_moves = generate_moves(&mut game);
 
@@ -328,53 +362,37 @@ pub fn game_loop(mut game: Game) {
                 println!("Game over");
                 break
             }
-            print!("Piece coordinates: ");
+
+            print!("Your move (in algebraic notation): ");
             io::stdout().flush().unwrap();
-            let mut start_input = String::new();
-            io::stdin().read_line(&mut start_input).unwrap();
-            start_input = start_input.trim().to_string();
-    
-            if let Ok(start_bit) = coords_to_bit(&start_input) {
+            let mut move_input = String::new();
+            io::stdin().read_line(&mut move_input).unwrap();
+            move_input = move_input.trim().to_string();
+
+            if let Some(input_move) = parse_algebraic_move(&move_input, &game) {   
+                let start_bit = onebit_index_to_bit(input_move.from_square);
                 let start_onebit_index = bit_to_onebit_index(start_bit);
                 if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
                     game.selected_piece_square = Some(start_onebit_index);
                     print_board(&game);
                     game.selected_piece_square = None;
 
-                    print!("Target coordinates: ");
-                    io::stdout().flush().unwrap();
-                    let mut end_input = String::new();
-                    io::stdin().read_line(&mut end_input).unwrap();
-                    end_input = end_input.trim().to_string();
-    
-                    if let Ok(end_bit) = coords_to_bit(&end_input) {
-                        let end_onebit_index = bit_to_onebit_index(end_bit);
-                        let input_move = Move {
-                            from_square: start_onebit_index,
-                            to_square: end_onebit_index,
-                        };
+                    if game.possible_moves.contains(&input_move) {
+                        make_move(&mut game, input_move);
+                        game.possible_moves = generate_moves(&mut game);
+                        print_board(&game);
 
-                        if game.possible_moves.contains(&input_move) {
-                            make_move(&mut game, input_move);
-                            game.possible_moves = generate_moves(&mut game);
-                            print_board(&game);
-
-                        } else {
-                            print_board(&game);
-                            println!("Invalid move");
-                        }
-    
                     } else {
                         print_board(&game);
-                        println!("Invalid input");
+                        println!("Illegal move");
                     }
                 } else {
                     print_board(&game);
-                    println!("No {:?} piece at {}", game.active_colour, start_input);
+                    println!("Invalid input");
                 }
             } else {
                 print_board(&game);
-                println!("Invalid input");
+                println!{"Invalid input"}
             }
         }
         
