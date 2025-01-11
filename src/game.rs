@@ -4,7 +4,6 @@ use std::io;
 use std::io::Write;
 use crate::utils::*;
 use crate::moves::*;
-use rand::seq::SliceRandom;
 
 // e.g.s:
 // coords: e4
@@ -27,7 +26,8 @@ use rand::seq::SliceRandom;
 // castling done
 // en passant done
 // pawn promotions done
-// algebraic move notation?
+// algebraic move notation? doneish
+// alert when check?
 // tests
 // check done
 // checkmate done
@@ -374,21 +374,121 @@ fn parse_algebraic_move(move_input: &str, game: &Game) -> Option<Move> {
     return None
 }
 
+static PAWN_PST: [i32; 64] =
+[0,  0,  0,  0,  0,  0,  0,  0,
+50, 50, 50, 50, 50, 50, 50, 50,
+10, 10, 20, 30, 30, 20, 10, 10,
+ 5,  5, 10, 25, 25, 10,  5,  5,
+ 0,  0,  0, 20, 20,  0,  0,  0,
+ 5, -5,-10,  0,  0,-10, -5,  5,
+ 5, 10, 10,-20,-20, 10, 10,  5,
+ 0,  0,  0,  0,  0,  0,  0,  0];
+
+ static KNIGHT_PST: [i32; 64] =
+ [-50,-40,-30,-30,-30,-30,-40,-50,
+-40,-20,  0,  0,  0,  0,-20,-40,
+-30,  0, 10, 15, 15, 10,  0,-30,
+-30,  5, 15, 20, 20, 15,  5,-30,
+-30,  0, 15, 20, 20, 15,  0,-30,
+-30,  5, 10, 15, 15, 10,  5,-30,
+-40,-20,  0,  5,  5,  0,-20,-40,
+-50,-40,-30,-30,-30,-30,-40,-50];
+
+static BISHOP_PST: [i32; 64] =
+[-20,-10,-10,-10,-10,-10,-10,-20,
+-10,  0,  0,  0,  0,  0,  0,-10,
+-10,  0,  5, 10, 10,  5,  0,-10,
+-10,  5,  5, 10, 10,  5,  5,-10,
+-10,  0, 10, 10, 10, 10,  0,-10,
+-10, 10, 10, 10, 10, 10, 10,-10,
+-10,  5,  0,  0,  0,  0,  5,-10,
+-20,-10,-10,-10,-10,-10,-10,-20];
+
+static ROOK_PST: [i32; 64] =
+[0,  0,  0,  0,  0,  0,  0,  0,
+5, 10, 10, 10, 10, 10, 10,  5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+0,  0,  0,  5,  5,  0,  0,  0];
+
+static QUEEN_PST: [i32; 64] =
+[-20,-10,-10, -5, -5,-10,-10,-20,
+-10,  0,  0,  0,  0,  0,  0,-10,
+-10,  0,  5,  5,  5,  5,  0,-10,
+ -5,  0,  5,  5,  5,  5,  0, -5,
+  0,  0,  5,  5,  5,  5,  0, -5,
+-10,  5,  5,  5,  5,  5,  0,-10,
+-10,  0,  5,  0,  0,  0,  0,-10,
+-20,-10,-10, -5, -5,-10,-10,-20];
+
+static KING_MIDDLEGAME: [i32; 64] =
+[-30,-40,-40,-50,-50,-40,-40,-30,
+-30,-40,-40,-50,-50,-40,-40,-30,
+-30,-40,-40,-50,-50,-40,-40,-30,
+-30,-40,-40,-50,-50,-40,-40,-30,
+-20,-30,-30,-40,-40,-30,-30,-20,
+-10,-20,-20,-20,-20,-20,-20,-10,
+ 20, 20,  0,  0,  0,  0, 20, 20,
+ 20, 30, 10,  0,  0, 10, 30, 20];
+
+static KING_ENDGAME: [i32; 64] =
+[-50,-40,-30,-20,-20,-30,-40,-50,
+-30,-20,-10,  0,  0,-10,-20,-30,
+-30,-10, 20, 30, 30, 20,-10,-30,
+-30,-10, 30, 40, 40, 30,-10,-30,
+-30,-10, 30, 40, 40, 30,-10,-30,
+-30,-10, 20, 30, 30, 20,-10,-30,
+-30,-30,  0,  0,  0,  0,-30,-30,
+-50,-30,-30,-30,-30,-30,-30,-50];
+
+
+
+fn evaluate_move(move_to_evaluate: Move, mut test_game: Game) -> f64 {
+    make_move(&mut test_game, move_to_evaluate);
+    let mut evaluation = 0.0;
+    let mut piece_evaluation = 0;
+    for piece in test_game.pieces {
+        let piece_square = bit_to_onebit_index(piece.bit);
+
+        if piece.colour == test_game.active_colour && piece.taken == false {
+            match piece.piece_type {
+                PieceType::Pawn => piece_evaluation += 100 + PAWN_PST[63 - piece_square],
+                PieceType::Bishop => piece_evaluation += 320 + BISHOP_PST[63 - piece_square],
+                PieceType::Knight => piece_evaluation += 330 + KNIGHT_PST[63 - piece_square],
+                PieceType::Rook => piece_evaluation += 500 + ROOK_PST[63 - piece_square],
+                PieceType::Queen => piece_evaluation += 900 + QUEEN_PST[63 - piece_square],
+                PieceType::King => piece_evaluation += 20000 + KING_MIDDLEGAME[63 - piece_square],
+            }
+        }
+        if piece.colour != test_game.active_colour && piece.taken == false {
+            match piece.piece_type {
+                PieceType::Pawn => piece_evaluation -= 100 + PAWN_PST[piece_square],
+                PieceType::Bishop => piece_evaluation -= 320 + BISHOP_PST[piece_square],
+                PieceType::Knight => piece_evaluation -= 330 + KNIGHT_PST[piece_square],
+                PieceType::Rook => piece_evaluation -= 500 + ROOK_PST[piece_square],
+                PieceType::Queen => piece_evaluation -= 900 + QUEEN_PST[piece_square],
+                PieceType::King => piece_evaluation -= 20000 + KING_MIDDLEGAME[piece_square],
+            }
+        }
+    }
+
+    evaluation += piece_evaluation as f64;
+
+
+    return evaluation
+}
+
 pub fn game_loop(mut game: Game) {
     game.possible_moves = generate_moves(&mut game);
-
     print_board(&game);
 
     loop {
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
         if game.active_colour == Colour::Black {
-            if let Some(random_move) = game.possible_moves.choose(&mut rand::thread_rng()) {
-                let random_move = *random_move;
-                make_move(&mut game, random_move);
-                game.possible_moves = generate_moves(&mut game);
-                print_board(&game);
-            } else {
-                // TODO: check for stalemate here
+            if game.possible_moves.len() == 0 {
                 if game.colour_in_check == Some(game.active_colour) {
                     println!{"Checkmate! White wins."};
                 } else {
@@ -396,9 +496,23 @@ pub fn game_loop(mut game: Game) {
                 }
                 break
             }
+            let mut best_move: Option<Move> = None;
+            let mut best_evaluation: f64 = 0.0;
+            for possible_move in &game.possible_moves {
+                let new_game = game.clone();
+                let evaluation = evaluate_move(*possible_move, new_game);
+                if evaluation < best_evaluation || best_move == None{
+                    best_evaluation = evaluation;
+                    best_move = Some(*possible_move);
+                }
+            }
+            if let Some(best) = best_move {
+                make_move(&mut game, best);
+                game.possible_moves = generate_moves(&mut game);
+                print_board(&game);        
+            }
         } else {
             if game.possible_moves.len() == 0 {
-                // TODO: check for stalemate here
                 if game.colour_in_check == Some(game.active_colour) {
                     println!{"Checkmate! Black wins."};
                 } else {
