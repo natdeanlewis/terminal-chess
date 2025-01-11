@@ -1,5 +1,5 @@
 use std::cmp::min;
-use crate::game::{make_move, CastlingRights, Game, PieceType, Square};
+use crate::game::{test_move, CastlingRights, Game, PieceType, Square};
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 use crate::Colour;
 
@@ -70,7 +70,7 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
 
         let mut new_game = game.clone();
 
-        make_move(&mut new_game, possible_move);
+        test_move(&mut new_game, possible_move);
 
         if let Some(king) = new_game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != new_game.active_colour) {
             let king_square = bit_to_onebit_index(king.bit);
