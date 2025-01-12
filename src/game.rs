@@ -113,6 +113,7 @@ impl Game {
         // let endgame_fen_str: &str = "1k6/8/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
         // let losing_fen_str: &str = "1k6/q1qq4/8/8/8/6P1/8/1K5Q w KQkq - 0 1";
         // let simple_fen_str: &str = "r3k3/8/8/8/8/8/8/R2QK3 w KQkq - 0 1";
+        // let draw_fen_str: &str = "4kn1n/8/8/8/8/8/8/4K3 w KQkq - 0 1";
         Game::read_FEN(starting_fen_str)
     }
 
@@ -596,10 +597,13 @@ pub fn game_loop(mut game: Game) {
     print_board(&game);
 
     loop {
-        if game.pieces.iter().filter(|piece| !piece.taken).count()== 2 {
-            println!{"Stalemate!"};
-            break
-        }
+        // if both sides have only a king with knights or bishops
+        if game.pieces.iter().filter(|piece| !piece.taken && [PieceType::Queen, PieceType::Rook, PieceType::Pawn].contains(&piece.piece_type)).count() == 0 {
+            if game.pieces.iter().filter(|piece| piece.colour == Colour::White && !piece.taken).count() <= 2 && game.pieces.iter().filter(|piece| piece.colour == Colour::Black && !piece.taken).count() <= 2 {
+                println!{"Draw!"};
+                break
+            }
+        } 
         if game.active_colour == Colour::Black {
             if game.possible_moves.len() == 0 {
                 if game.colour_in_check == Some(game.active_colour) {
