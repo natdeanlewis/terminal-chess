@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use core::f64;
 use std::collections::VecDeque;
 use std::io;
 use std::io::Write;
@@ -482,6 +483,22 @@ fn evaluate_game(test_game: &mut Game) -> f64 {
 
     evaluation += piece_evaluation;
 
+    if let Some(white_king) = test_game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == Colour::White) {
+        let white_king_square = bit_to_onebit_index(white_king.bit);
+
+        if inactive_colour_in_check(test_game, white_king_square) {
+            evaluation -= 50;
+        }
+    }
+
+    if let Some(black_king) = test_game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == Colour::Black) {
+        let black_king_square = bit_to_onebit_index(black_king.bit);
+
+        if inactive_colour_in_check(test_game, black_king_square) {
+            evaluation += 50;
+        }
+    }
+//  TODO: checkmate bonus
 
     return evaluation as f64 / 100.0
 }
@@ -501,7 +518,6 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64,
             let mut new_game = game.clone();
             test_move(&mut new_game, *possible_move);
             new_game.possible_moves = generate_moves(&mut new_game);
-
             let (evaluation, _) = minimax(&mut new_game, depth - 1, false, alpha, beta);
 
             if evaluation < best_evaluation {
@@ -535,12 +551,13 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64,
 
 fn iterative_deepening_minimax(game: &mut Game, max_depth: u32) -> Option<Move> {
     let mut best_move: Option<Move> = None;
-    let mut best_evaluation: f64 = f64::NEG_INFINITY;
+    let mut best_evaluation: f64 = f64::INFINITY;
     
     for depth in 1..=max_depth {
-        let (evaluation, best) = minimax(game, depth, true, f64::NEG_INFINITY, f64::INFINITY);
+        best_evaluation = f64::INFINITY;
+        let (evaluation, best) = minimax(game, depth, true, f64::INFINITY, f64::NEG_INFINITY);
         // Store the best move if evaluation improves
-        if evaluation > best_evaluation {
+        if evaluation < best_evaluation {
             best_evaluation = evaluation;
             best_move = best;
         }
@@ -574,7 +591,7 @@ pub fn game_loop(mut game: Game) {
             println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
             
             println!("Thinking...");
-            let max_depth = 2; // You can set the desired depth here
+            let max_depth = 2;
             if let Some(best_move) = iterative_deepening_minimax(&mut game, max_depth) {
                 make_move(&mut game, best_move);
                 game.possible_moves = generate_moves(&mut game);
