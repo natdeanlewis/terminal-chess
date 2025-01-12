@@ -31,6 +31,7 @@ use crate::moves::*;
 // check done
 // checkmate done
 // stalemate done
+// dont' alow castling when ONLY king square is threatened (castling out of check)
 // tests
 // perft
 // repetition draws
@@ -106,6 +107,7 @@ impl Game {
         let starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         // let endgame_fen_str: &str = "1k6/8/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
         // let losing_fen_str: &str = "1k6/qq3q2/8/8/8/8/8/4K2Q w KQkq - 0 1";
+        // let simple_fen_str: &str = "r3k3/8/8/8/8/8/8/R2QK3 w KQkq - 0 1";
         Game::read_FEN(starting_fen_str)
     }
 
@@ -450,14 +452,13 @@ static KING_ENDGAME: [i32; 64] =
 
 
 
-fn evaluate_move(move_to_evaluate: Move, mut test_game: Game) -> f64 {
-    make_move(&mut test_game, move_to_evaluate);
-    let mut evaluation = 0.0;
+fn evaluate_game(test_game: &mut Game) -> f64 {
+    let mut evaluation = 0;
     let mut piece_evaluation = 0;
-    for piece in test_game.pieces {
+    for piece in test_game.pieces.clone() {
         let piece_square = bit_to_onebit_index(piece.bit);
 
-        if piece.colour == test_game.active_colour && piece.taken == false {
+        if piece.colour == Colour::White && piece.taken == false {
             match piece.piece_type {
                 PieceType::Pawn => piece_evaluation += 100 + PAWN_PST[63 - piece_square],
                 PieceType::Bishop => piece_evaluation += 320 + BISHOP_PST[63 - piece_square],
@@ -467,7 +468,7 @@ fn evaluate_move(move_to_evaluate: Move, mut test_game: Game) -> f64 {
                 PieceType::King => piece_evaluation += 20000 + KING_MIDDLEGAME[63 - piece_square],
             }
         }
-        if piece.colour != test_game.active_colour && piece.taken == false {
+        if piece.colour == Colour::Black && piece.taken == false {
             match piece.piece_type {
                 PieceType::Pawn => piece_evaluation -= 100 + PAWN_PST[piece_square],
                 PieceType::Bishop => piece_evaluation -= 320 + BISHOP_PST[piece_square],
@@ -479,10 +480,81 @@ fn evaluate_move(move_to_evaluate: Move, mut test_game: Game) -> f64 {
         }
     }
 
-    evaluation += piece_evaluation as f64;
+    evaluation += piece_evaluation;
 
 
-    return evaluation
+    return evaluation as f64 / 100.0
+}
+
+fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64, mut beta: f64) -> (f64, Option<Move>) {
+// Base case: If depth is 0 or game over, return the evaluation of the game
+    if depth == 0 || game.possible_moves.len() == 0 {
+        return (evaluate_game(game), None);
+    }
+
+    let mut best_move: Option<Move> = None;
+    let mut best_evaluation: f64;
+
+    if maximizing_player {
+        best_evaluation = f64::INFINITY;
+        for possible_move in &game.possible_moves {
+            let mut new_game = game.clone();
+            test_move(&mut new_game, *possible_move);
+            new_game.possible_moves = generate_moves(&mut new_game);
+
+            let (evaluation, _) = minimax(&mut new_game, depth - 1, false, alpha, beta);
+
+            if evaluation < best_evaluation {
+                best_evaluation = evaluation;
+                best_move = Some(*possible_move);
+            }
+
+            // // Alpha-Beta pruning
+            // if best_evaluation >= beta {
+            //     break;
+            // }
+            // alpha = alpha.max(best_evaluation);
+        }
+
+    } else {
+        best_evaluation = f64::NEG_INFINITY;
+        for possible_move in &game.possible_moves {
+            let mut new_game = game.clone();
+            make_move(&mut new_game, *possible_move);
+            new_game.possible_moves = generate_moves(&mut new_game);
+
+            let (evaluation, _) = minimax(&mut new_game, depth - 1, true, alpha, beta);
+
+            if evaluation > best_evaluation {
+                best_evaluation = evaluation;
+                best_move = Some(*possible_move);
+            }
+
+            // // Alpha-Beta pruning
+            // if best_evaluation <= alpha {
+            //     break;
+            // }
+            // beta = beta.min(best_evaluation);
+        }
+    }
+
+    (best_evaluation, best_move)
+}
+
+fn iterative_deepening_minimax(game: &mut Game, max_depth: u32) -> Option<Move> {
+    let mut best_move: Option<Move> = None;
+    let mut best_evaluation: f64 = f64::NEG_INFINITY;
+    
+    for depth in 1..=max_depth {
+        let (evaluation, best) = minimax(game, depth, true, f64::NEG_INFINITY, f64::INFINITY);
+        // Store the best move if evaluation improves
+        if evaluation > best_evaluation {
+            best_evaluation = evaluation;
+            best_move = best;
+        }
+    }
+
+    best_move
 }
 
 pub fn game_loop(mut game: Game) {
@@ -490,6 +562,10 @@ pub fn game_loop(mut game: Game) {
     print_board(&game);
 
     loop {
+        if game.pieces.iter().filter(|piece| !piece.taken).count()== 2 {
+            println!{"Stalemate!"};
+            break
+        }
         if game.active_colour == Colour::Black {
             if game.possible_moves.len() == 0 {
                 if game.colour_in_check == Some(game.active_colour) {
@@ -505,21 +581,11 @@ pub fn game_loop(mut game: Game) {
             
             println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
             
-    
-            let mut best_move: Option<Move> = None;
-            let mut best_evaluation: f64 = 0.0;
-            for possible_move in &game.possible_moves {
-                let new_game = game.clone();
-                let evaluation = evaluate_move(*possible_move, new_game);
-                if evaluation < best_evaluation || best_move == None{
-                    best_evaluation = evaluation;
-                    best_move = Some(*possible_move);
-                }
-            }
-            if let Some(best) = best_move {
-                make_move(&mut game, best);
+            let max_depth = 2; // You can set the desired depth here
+            if let Some(best_move) = iterative_deepening_minimax(&mut game, max_depth) {
+                make_move(&mut game, best_move);
                 game.possible_moves = generate_moves(&mut game);
-                print_board(&game);        
+                print_board(&game);
             }
         } else {
             if game.possible_moves.len() == 0 {
