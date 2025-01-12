@@ -28,11 +28,12 @@ use crate::moves::*;
 // en passant done
 // pawn promotions done
 // algebraic move notation? done
-// alert when check?
+// alert when check? done
 // check done
 // checkmate done
 // stalemate done
-// dont' alow castling when ONLY king square is threatened (castling out of check)
+// don't allow castling when ONLY king square is threatened (castling out of check) done
+// show last move and eval
 // tests
 // perft
 // repetition draws
@@ -45,6 +46,7 @@ use crate::moves::*;
 // play multiple colours
 // mouse gui
 // full algebraic move notation?
+// allow non-queen promotion when testing moves
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Colour {
@@ -88,6 +90,7 @@ pub struct Game {
     possible_moves: Vec<Move>,
     selected_piece_square: Option<usize>,
     colour_in_check: Option<Colour>,
+    last_move: Option<Move>,
 }
 
 bitflags! {
@@ -107,9 +110,9 @@ impl Game {
         // let ambiguous_fen_str = "3r3r/2k5/8/R7/4Q2Q/8/8/RK5Q w KQkq - 0 1";
         let starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         // let endgame_fen_str: &str = "1k6/8/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
-        // let losing_fen_str: &str = "1k6/qq3q2/8/8/8/8/8/4K2Q w KQkq - 0 1";
+        let losing_fen_str: &str = "1k6/q1qq4/8/8/8/6P1/8/1K5Q w KQkq - 0 1";
         // let simple_fen_str: &str = "r3k3/8/8/8/8/8/8/R2QK3 w KQkq - 0 1";
-        Game::read_FEN(starting_fen_str)
+        Game::read_FEN(losing_fen_str)
     }
 
     fn to_string(&self) -> String {
@@ -122,15 +125,25 @@ impl Game {
             }
 
             let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
-            // Selected piece highlighting
-            if Some(i) == self.selected_piece_square {
-                background_colour = "\x1b[48;5;112m";
-            }
-            // Possible move highlighting
-            if let Some(_possible_move) = self.possible_moves.iter().find(|&m| Some(m.from_square) == self.selected_piece_square &&  m.to_square == i) {
-                background_colour = "\x1b[48;5;149m";
+            // // Selected piece highlighting
+            // if Some(i) == self.selected_piece_square {
+            //     background_colour = "\x1b[48;5;112m";
+            // }
+            // // Possible move highlighting
+            // if let Some(_possible_move) = self.possible_moves.iter().find(|&m| Some(m.from_square) == self.selected_piece_square &&  m.to_square == i) {
+            //     background_colour = "\x1b[48;5;149m";
+            // }
 
+            // Last move highlighting
+            if let Some(last_move) = self.last_move {
+                if i == last_move.to_square {
+                    background_colour = "\x1b[48;5;112m";
+                }
+                if i == last_move.from_square {
+                    background_colour = "\x1b[48;5;149m";
+                }
             }
+            
 
             temp.push_str(background_colour);
             match square {
@@ -142,13 +155,15 @@ impl Game {
             }
             let colour_end = "\x1b[0m";
             temp.push_str(colour_end);
-
             if (i + 1) % 8 == 0 {
+                temp.push_str(&format!(" {}", (i / 8) + 1));
                 temp.push_str("\n");
                 board.insert_str(0, &temp);
                 temp.clear();
             }
         }
+        board.insert_str(0, "   a  b  c  d  e  f  g  h\n");
+    
         board.insert_str(0, &temp);
         board
     }
@@ -165,7 +180,8 @@ impl Game {
             fullmove_number: 1,
             possible_moves: vec![],
             selected_piece_square: None,
-            colour_in_check: None
+            colour_in_check: None,
+            last_move: None
         };
 
         let (position, rest) = split_on(fen, ' ');
@@ -484,11 +500,19 @@ fn evaluate_game(test_game: &mut Game) -> f64 {
     evaluation += piece_evaluation;
 
     if test_game.colour_in_check == Some(Colour::White) {
-        evaluation -= 50;
+        if test_game.possible_moves.len() == 0 {
+            evaluation -= 10000;
+        } else {
+            evaluation -= 50;
+        }
     }
 
     if test_game.colour_in_check == Some(Colour::Black) {
-        evaluation += 50;
+        if test_game.possible_moves.len() == 0 {
+            evaluation += 10000;
+        } else {
+            evaluation += 50;
+        }
     }
 //  TODO: checkmate bonus
 
@@ -524,7 +548,7 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64,
         best_evaluation = f64::NEG_INFINITY;
         for possible_move in &game.possible_moves {
             let mut new_game = game.clone();
-            make_move(&mut new_game, *possible_move);
+            test_move(&mut new_game, *possible_move);
             new_game.possible_moves = generate_moves(&mut new_game);
 
             let (evaluation, _) = minimax(&mut new_game, depth - 1, true, alpha, beta);
@@ -586,6 +610,7 @@ pub fn game_loop(mut game: Game) {
             let max_depth = 2;
             if let Some(best_move) = iterative_deepening_minimax(&mut game, max_depth) {
                 make_move(&mut game, best_move);
+                game.last_move = Some(best_move);
                 game.possible_moves = generate_moves(&mut game);
                 print_board(&game);
             }
@@ -616,10 +641,11 @@ pub fn game_loop(mut game: Game) {
                 let start_bit = onebit_index_to_bit(input_move.from_square);
                 let start_onebit_index = bit_to_onebit_index(start_bit);
                 if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
-                    game.selected_piece_square = Some(start_onebit_index);
-                    print_board(&game);
-                    game.selected_piece_square = None;
+                    // game.selected_piece_square = Some(start_onebit_index);
+                    // print_board(&game);
+                    // game.selected_piece_square = None;
                     make_move(&mut game, input_move);
+                    game.last_move = Some(input_move);
                     game.possible_moves = generate_moves(&mut game);
                     print_board(&game);
                 } else {
