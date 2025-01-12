@@ -110,9 +110,9 @@ impl Game {
         // let ambiguous_fen_str = "3r3r/2k5/8/R7/4Q2Q/8/8/RK5Q w KQkq - 0 1";
         let starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         // let endgame_fen_str: &str = "1k6/8/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
-        let losing_fen_str: &str = "1k6/q1qq4/8/8/8/6P1/8/1K5Q w KQkq - 0 1";
+        // let losing_fen_str: &str = "1k6/q1qq4/8/8/8/6P1/8/1K5Q w KQkq - 0 1";
         // let simple_fen_str: &str = "r3k3/8/8/8/8/8/8/R2QK3 w KQkq - 0 1";
-        Game::read_FEN(losing_fen_str)
+        Game::read_FEN(starting_fen_str)
     }
 
     fn to_string(&self) -> String {
