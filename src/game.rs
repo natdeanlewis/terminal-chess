@@ -42,7 +42,8 @@ use crate::moves::*;
 // positional skewing
 // search
 // minimax
-// alphabeta pruning
+// alphabeta pruning done
+// test alphabeta pruning!
 // play multiple colours
 // mouse gui
 // full algebraic move notation?
@@ -389,9 +390,11 @@ fn parse_algebraic_move(move_input: &str, game: &Game) -> Option<Move> {
     if possible_matches.len() == 1 {
         return Some(possible_matches[0])
     } else if possible_matches.len() > 1 {
+        print_board(&game);
         println!("Move is ambiguous, please double disambiguate (e.g. Qh4e1)");
         return None
     }
+    print_board(&game);
     println!("Invalid move, use algebraic notation without indication of captures (e.g. Nc3)");
     return None
 }
@@ -541,7 +544,10 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64,
                 best_move = Some(*possible_move);
             }
 
-            // TODO: Alpha-Beta pruning
+            if best_evaluation <= beta {
+                break;
+            }
+            alpha = alpha.min(best_evaluation);
         }
 
     } else {
@@ -558,7 +564,10 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64,
                 best_move = Some(*possible_move);
             }
 
-            // TODO: Alpha-Beta pruning
+            if best_evaluation >= alpha {
+                break;
+            }
+            beta = beta.max(best_evaluation);
         }
     }
 
