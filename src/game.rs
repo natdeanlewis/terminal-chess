@@ -509,11 +509,7 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64,
                 best_move = Some(*possible_move);
             }
 
-            // // Alpha-Beta pruning
-            // if best_evaluation >= beta {
-            //     break;
-            // }
-            // alpha = alpha.max(best_evaluation);
+            // TODO: Alpha-Beta pruning
         }
 
     } else {
@@ -530,11 +526,7 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64,
                 best_move = Some(*possible_move);
             }
 
-            // // Alpha-Beta pruning
-            // if best_evaluation <= alpha {
-            //     break;
-            // }
-            // beta = beta.min(best_evaluation);
+            // TODO: Alpha-Beta pruning
         }
     }
 
@@ -581,6 +573,7 @@ pub fn game_loop(mut game: Game) {
             
             println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
             
+            println!("Thinking...");
             let max_depth = 2; // You can set the desired depth here
             if let Some(best_move) = iterative_deepening_minimax(&mut game, max_depth) {
                 make_move(&mut game, best_move);
