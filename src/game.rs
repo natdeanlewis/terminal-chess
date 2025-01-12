@@ -483,20 +483,12 @@ fn evaluate_game(test_game: &mut Game) -> f64 {
 
     evaluation += piece_evaluation;
 
-    if let Some(white_king) = test_game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == Colour::White) {
-        let white_king_square = bit_to_onebit_index(white_king.bit);
-
-        if inactive_colour_in_check(test_game, white_king_square) {
-            evaluation -= 50;
-        }
+    if test_game.colour_in_check == Some(Colour::White) {
+        evaluation -= 50;
     }
 
-    if let Some(black_king) = test_game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == Colour::Black) {
-        let black_king_square = bit_to_onebit_index(black_king.bit);
-
-        if inactive_colour_in_check(test_game, black_king_square) {
-            evaluation += 50;
-        }
+    if test_game.colour_in_check == Some(Colour::Black) {
+        evaluation += 50;
     }
 //  TODO: checkmate bonus
 
