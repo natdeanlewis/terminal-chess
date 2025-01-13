@@ -1,7 +1,7 @@
-use crate::bishop_moves::add_bishop_moves;
+use crate::moves_bishop::add_bishop_moves;
 use crate::game::Game;
 use crate::moves::Move;
-use crate::rook_moves::add_rook_moves;
+use crate::moves_rook::add_rook_moves;
 
 pub fn add_queen_moves(
     from_square: usize,

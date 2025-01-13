@@ -1,14 +1,14 @@
 use std::io;
 use std::io::Write;
-use crate::bishop_moves::add_bishop_moves;
+use crate::moves_bishop::add_bishop_moves;
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::{bit_to_onebit_index, get_piece_index, onebit_index_to_bit, print_board};
 use crate::Colour;
-use crate::king_moves::{add_castle_moves, add_king_moves};
-use crate::knight_moves::add_knight_moves;
-use crate::pawn_moves::add_pawn_moves;
-use crate::queen_moves::add_queen_moves;
-use crate::rook_moves::add_rook_moves;
+use crate::moves_king::{add_castle_moves, add_king_moves};
+use crate::moves_knight::add_knight_moves;
+use crate::moves_pawn::add_pawn_moves;
+use crate::moves_queen::add_queen_moves;
+use crate::moves_rook::add_rook_moves;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Move {

@@ -1,7 +1,7 @@
-use crate::bishop_moves::add_bishop_moves;
+use crate::moves_bishop::add_bishop_moves;
 use crate::game::{CastlingRights, Colour, Game, Square};
 use crate::moves::{generate_pseudolegal_moves_without_castling, square_under_threat, Move};
-use crate::rook_moves::add_rook_moves;
+use crate::moves_rook::add_rook_moves;
 
 pub fn add_king_moves(
 from_square: usize,
