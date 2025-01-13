@@ -13,7 +13,7 @@ use crate::moves::*;
 // piece_index = count of piece (0 to 31)
 // position: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 (board state)
 
-
+// TODO: castling under check if checking for own target moves not opponents?
 // TODO: generate moves for each piece for a given board state
 // and then use these to only allow legal moves.
 // later use these for the engine to calculate good and bad moves
