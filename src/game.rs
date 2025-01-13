@@ -89,7 +89,6 @@ pub struct Game {
     pub halfmove_clock: usize,
     pub fullmove_number: usize,
     possible_moves: Vec<Move>,
-    selected_piece_square: Option<usize>,
     colour_in_check: Option<Colour>,
     last_move: Option<Move>,
 }
@@ -128,14 +127,6 @@ impl Game {
             }
 
             let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
-            // // Selected piece highlighting
-            // if Some(i) == self.selected_piece_square {
-            //     background_colour = "\x1b[48;5;112m";
-            // }
-            // // Possible move highlighting
-            // if let Some(_possible_move) = self.possible_moves.iter().find(|&m| Some(m.from_square) == self.selected_piece_square &&  m.to_square == i) {
-            //     background_colour = "\x1b[48;5;149m";
-            // }
 
             // Last move highlighting
             if let Some(last_move) = self.last_move {
@@ -182,7 +173,6 @@ impl Game {
             halfmove_clock: 0,
             fullmove_number: 1,
             possible_moves: vec![],
-            selected_piece_square: None,
             colour_in_check: None,
             last_move: None
         };
@@ -462,7 +452,7 @@ static KING_MIDDLEGAME: [i32; 64] =
  20, 30, 10,  0,  0, 10, 30, 20];
 
  // TODO: incorporate this
-static KING_ENDGAME: [i32; 64] =
+static _KING_ENDGAME: [i32; 64] =
 [-50,-40,-30,-20,-20,-30,-40,-50,
 -30,-20,-10,  0,  0,-10,-20,-30,
 -30,-10, 20, 30, 30, 20,-10,-30,
@@ -578,14 +568,13 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64,
 
 fn iterative_deepening_minimax(game: &mut Game, max_depth: u32) -> Option<Move> {
     let mut best_move: Option<Move> = None;
-    let mut best_evaluation: f64 = f64::INFINITY;
+    let mut best_evaluation: f64;
     
     for depth in 1..=max_depth {
         best_evaluation = f64::INFINITY;
         let (evaluation, best) = minimax(game, depth, true, f64::INFINITY, f64::NEG_INFINITY);
         // Store the best move if evaluation improves
         if evaluation < best_evaluation {
-            best_evaluation = evaluation;
             best_move = best;
         }
     }
@@ -653,11 +642,7 @@ pub fn game_loop(mut game: Game) {
 
             if let Some(input_move) = parse_algebraic_move(&move_input, &game) {   
                 let start_bit = onebit_index_to_bit(input_move.from_square);
-                let start_onebit_index = bit_to_onebit_index(start_bit);
                 if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
-                    // game.selected_piece_square = Some(start_onebit_index);
-                    // print_board(&game);
-                    // game.selected_piece_square = None;
                     game.last_move = Some(input_move);
                     make_move(&mut game, input_move);
                     game.possible_moves = generate_moves(&mut game);
