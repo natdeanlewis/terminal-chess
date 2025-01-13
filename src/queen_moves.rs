@@ -1,0 +1,15 @@
+use crate::bishop_moves::add_bishop_moves;
+use crate::game::Game;
+use crate::moves::Move;
+use crate::rook_moves::add_rook_moves;
+
+pub fn add_queen_moves(
+    from_square: usize,
+    mut possible_moves: Vec<Move>,
+    squares_to_edges: [usize; 4],
+    game: &Game,
+) -> Vec<Move> {
+    possible_moves = add_bishop_moves(from_square, possible_moves, squares_to_edges, game);
+    possible_moves = add_rook_moves(from_square, possible_moves, squares_to_edges, game);
+    possible_moves
+}
