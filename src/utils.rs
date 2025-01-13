@@ -92,7 +92,7 @@ pub fn get_piece_index(square: &Square) -> Option<usize> {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, unused_variables, unused_mut)]
 pub fn parse_FEN_row(row: &str, mut piece_index: usize, mut onebit_index: usize) -> (Vec<Piece>, VecDeque<Square>) {
     let mut pieces = Vec::new();
     let mut squares = VecDeque::new();
