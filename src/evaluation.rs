@@ -119,7 +119,6 @@ fn evaluate_game(test_game: &mut Game) -> f64 {
             evaluation += 50;
         }
     }
-    //  TODO: checkmate bonus
 
     return evaluation as f64 / 100.0
 }

@@ -187,7 +187,7 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     }
     if game.pieces[start_piece_index].piece_type == PieceType::Rook {
         //Remove this rook's side castling rights
-        match start_piece_index {
+        match move_to_make.from_square {
             0 => {
                 game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
             }
@@ -291,7 +291,7 @@ fn make_pawn_promotion(game: &mut Game, mut move_to_make: Move, start_piece_inde
 }
 
 #[test]
-fn perft_starting() {
+fn perft_1() {
     let test_number = 1;
     let _perft_1_fen_str = _STARTING_FEN_STR;
     let expected_node_counts = [1, 20, 400, 8_902];
@@ -303,7 +303,7 @@ fn perft_starting() {
 #[test]
 fn perft_2() {
     let test_number = 2;
-    let expected_node_counts = [1, 48, 2039, 97_862];
+    let expected_node_counts = [1, 48, 2_039, 97_862];
 
     let mut game = Game::initialize(_PERFT_2_FEN_STR);
     run_perft_test(&mut game, expected_node_counts, test_number);
@@ -330,7 +330,7 @@ fn perft_4() {
 #[test]
 fn perft_5() {
     let test_number = 5;
-    let expected_node_counts = [1, 44, 1_468, 62_379];
+    let expected_node_counts = [1, 44, 1_486, 62_379];
 
     let mut game = Game::initialize(_PERFT_5_FEN_STR);
     run_perft_test(&mut game, expected_node_counts, test_number);
@@ -349,15 +349,20 @@ fn perft_func(depth: u32, game: &mut Game) -> u32 {
     if depth == 0 {
         return 1;
     }
-    let mut nodes = 0;
+    let mut total = 0;
 
     let n_moves = generate_moves(game);
     for n_move in n_moves.iter() {
         let mut new_game = game.clone();
         make_move(&mut new_game, *n_move);
-        nodes += perft_func(depth - 1, &mut new_game)
+        let nodes: u32 = perft_func(depth - 1, &mut new_game);
+        // let depth_to_print - 3;
+        // if depth == depth_to_print {
+        //     println!("{}: {}", move_to_unambiguous_algebraic_notation(game, *n_move).expect("!"), nodes);
+        // }
+        total += nodes;
     }
-    nodes
+    total
 }
 
 fn run_perft_test(game: &mut Game, expected_node_counts: [u32; 4], test_number: i32) {

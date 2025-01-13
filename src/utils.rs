@@ -204,7 +204,7 @@ pub fn parse_algebraic_move(move_input: &str, game: &Game) -> Option<Move> {
     return None
 }
 
-fn move_to_unambiguous_algebraic_notation(game: &Game, possible_move: Move) -> Option<String> {
+pub fn move_to_unambiguous_algebraic_notation(game: &Game, possible_move: Move) -> Option<String> {
     let from_bit = onebit_index_to_bit(possible_move.from_square);
     if let Some(piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == from_bit && p.colour == game.active_colour) {
         let mut algebraic_move = "".to_owned();
