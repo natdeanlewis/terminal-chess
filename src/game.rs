@@ -6,48 +6,6 @@ use crate::evaluation::iterative_deepening_minimax;
 use crate::utils::*;
 use crate::moves::*;
 
-// e.g.s:
-// coords: e4
-// bit: 0000...0000000100000000000 (2^12)
-// onebit_index = 12 (0 to 63)
-// piece_index = count of piece (0 to 31)
-// position: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 (board state)
-
-// TODO: castling under check if checking for own target moves not opponents? can't replicate
-// TODO: turn piece bonuses down or increase check bonus in endgame?
-// use bitboard per piece type?
-// knight done
-// king done
-// rook done
-// bishop done
-// queen done
-// pawn done
-// castling done
-// en passant done
-// pawn promotions done
-// algebraic move notation? done
-// alert when check? done
-// check done
-// checkmate done
-// stalemate done
-// don't allow castling when ONLY king square is threatened (castling out of check) done
-// show last move and eval
-// print lines as calculated
-// tests
-// perft
-// repetition draws
-// optimisation
-// board evaluation
-// positional skewing
-// search
-// minimax
-// alphabeta pruning done
-// test alphabeta pruning!
-// play multiple colours
-// mouse gui
-// full algebraic move notation?
-// allow non-queen promotion when testing moves
-
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Colour {
     White,
