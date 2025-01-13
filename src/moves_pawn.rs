@@ -20,6 +20,7 @@ pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &
         possible_moves.push(Move {
             from_square: from_square,
             to_square: target_square as usize,
+            promotion: None,
         });
 
         // Two squares forward
@@ -30,6 +31,7 @@ pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: target_square as usize,
+                    promotion: None,
                 })
             }
         }
@@ -44,6 +46,7 @@ pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &
             possible_moves.push(Move {
                 from_square: from_square,
                 to_square: left_diagonal_target_square as usize,
+                promotion: None,
             });
         }
     }
@@ -57,6 +60,7 @@ pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &
             possible_moves.push(Move {
                 from_square: from_square,
                 to_square: right_diagonal_target_square as usize,
+                promotion: None,
             });
         }
     }
@@ -73,6 +77,7 @@ pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &
                     possible_moves.push(Move {
                         from_square: from_square,
                         to_square: en_passant_onebit_index,
+                        promotion: None,
                     })
                 }
             }
@@ -85,6 +90,7 @@ pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &
                     possible_moves.push(Move {
                         from_square: from_square,
                         to_square: en_passant_onebit_index,
+                        promotion: None,
                     })
                 }
             }

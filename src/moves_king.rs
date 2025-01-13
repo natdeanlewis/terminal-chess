@@ -36,6 +36,7 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square + 2,
+                    promotion: None,
                 });
             }
         }
@@ -44,6 +45,7 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square - 2,
+                    promotion: None,
                 });
             }
         }
@@ -53,6 +55,7 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square + 2,
+                    promotion: None,
                 });
             }        }
         if game.castling_rights.contains(CastlingRights::BLACKQUEENSIDE) {
@@ -60,6 +63,7 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square - 2,
+                    promotion: None,
                 });
             }
         }

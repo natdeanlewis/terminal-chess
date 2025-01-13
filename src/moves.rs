@@ -14,6 +14,7 @@ use crate::moves_rook::add_rook_moves;
 pub struct Move {
     pub(crate) from_square: usize,
     pub(crate) to_square: usize,
+    pub promotion: Option<PieceType>,
 }
 
 fn squares_to_edges(bit: u64) -> [usize; 4] {

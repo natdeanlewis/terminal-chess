@@ -36,6 +36,7 @@ fn single_direction_rook_moves(
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: temp as usize,
+                    promotion: None,
                 });
             }
             break;
@@ -44,6 +45,7 @@ fn single_direction_rook_moves(
         possible_moves.push(Move {
             from_square,
             to_square: temp as usize,
+            promotion: None,
         });
     }
 

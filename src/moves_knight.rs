@@ -24,7 +24,8 @@ fn single_direction_knight_move(from_square: usize, offset: isize, row_offset: i
         if game.pieces.iter().all(|p| p.taken || p.bit != target_bit || p.colour != game.active_colour) {
             possible_moves.push(Move {
                 from_square: from_square,
-                to_square: target_index as usize
+                to_square: target_index as usize,
+                promotion: None,
             });
         }
     }
