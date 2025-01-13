@@ -13,10 +13,8 @@ use crate::moves::*;
 // piece_index = count of piece (0 to 31)
 // position: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 (board state)
 
-// TODO: castling under check if checking for own target moves not opponents?
-// TODO: generate moves for each piece for a given board state
-// and then use these to only allow legal moves.
-// later use these for the engine to calculate good and bad moves
+// TODO: castling under check if checking for own target moves not opponents? can't replicate
+// TODO: turn piece bonuses down or increase check bonus in endgame?
 // use bitboard per piece type?
 // knight done
 // king done
@@ -34,6 +32,7 @@ use crate::moves::*;
 // stalemate done
 // don't allow castling when ONLY king square is threatened (castling out of check) done
 // show last move and eval
+// print lines as calculated
 // tests
 // perft
 // repetition draws
@@ -109,6 +108,7 @@ impl Game {
     pub fn initialize() -> Game {
         let _ambiguous_fen_str = "3r3r/2k5/8/R7/4Q2Q/8/8/RK5Q w KQkq - 0 1";
         let _starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        let _castling_fen_str = "5k2/8/8/8/8/8/2R5/R3K2R w KQkq - 0 1";
         let _endgame_fen_str: &str = "1k6/7P/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
         let _losing_fen_str: &str = "1k6/q1qq4/8/8/8/6P1/8/1K5Q w KQkq - 0 1";
         let _simple_fen_str: &str = "r3k3/8/8/8/8/8/8/R2QK3 w KQkq - 0 1";
