@@ -1,3 +1,10 @@
+build: ```cargo build```
+run: ```cargo run```
+test: ```cargo test```
+test with println!s :```cargo test -- --nocapture```
+
+
+
 - TODOs:
   - castling under check if checking for own target moves not opponents? can't replicate
   - turn piece bonuses down or increase check bonus in endgame?

@@ -337,3 +337,29 @@ fn make_pawn_promotion_auto_queen(game: &mut Game, move_to_make: Move, start_pie
         game.pieces[start_piece_index].piece_type = PieceType::Queen;
     }
 }
+
+#[test]
+fn perft() {
+    fn perft_func(depth: u32, game: &mut Game) -> u32 {
+        if depth == 0 {
+            return 1;
+        }
+        let mut nodes = 0;
+
+        let n_moves = generate_moves(game);
+        for n_move in n_moves.iter() {
+            let mut new_game = game.clone();
+            make_move(&mut new_game, *n_move);
+            nodes += perft_func(depth - 1, &mut new_game)
+        }
+        nodes
+    }
+
+    let mut game = Game::initialize();
+    let expected_node_counts = [1, 20, 400, 8_902, 197_281];
+    for (depth, &expected_nodes) in expected_node_counts.iter().enumerate() {
+        let nodes = perft_func(depth as u32, &mut game);
+        assert_eq!(nodes, expected_nodes, "Mismatch at depth {}", depth);
+        println!("Depth {}: Success! Expected {} nodes, got {}", depth, expected_nodes, nodes);
+    }
+}
