@@ -1,5 +1,3 @@
-use std::io;
-use std::io::Write;
 use crate::moves_bishop::add_bishop_moves;
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
@@ -283,13 +281,6 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     game.active_colour = inactive_colour;
 }
 
-
-fn make_pawn_promotion(game: &mut Game, mut move_to_make: Move, start_piece_index: usize) {
-    if move_to_make.promotion != None {
-        game.pieces[start_piece_index].piece_type = move_to_make.promotion.unwrap();
-    }
-}
-
 #[test]
 fn perft_1() {
     let test_number = 1;
@@ -365,6 +356,7 @@ fn perft_func(depth: u32, game: &mut Game) -> u32 {
     total
 }
 
+#[allow(unused)]
 fn run_perft_test(game: &mut Game, expected_node_counts: [u32; 4], test_number: i32) {
     for (depth, &expected_nodes) in expected_node_counts.iter().enumerate() {
         let nodes = perft_func(depth as u32, game);

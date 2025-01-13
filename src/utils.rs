@@ -277,9 +277,9 @@ mod tests {
     #[test]
     fn split_on_space_works() {
         let test_string = "A B C D";
-        let (should_be_a, rest) = split_on(test_string, ' ');
+        let (should_be_a, _rest) = split_on(test_string, ' ');
         assert_eq!(should_be_a, "A");
-        let (should_be_b, rest) = split_on(test_string, ' ');
+        let (_should_be_b, _rest) = split_on(test_string, ' ');
     }
 
     #[test]
