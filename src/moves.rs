@@ -2,7 +2,7 @@ use std::io;
 use std::io::Write;
 use crate::moves_bishop::add_bishop_moves;
 use crate::game::{CastlingRights, Game, PieceType, Square};
-use crate::utils::{bit_to_onebit_index, get_piece_index, onebit_index_to_bit, print_board};
+use crate::utils::*;
 use crate::Colour;
 use crate::moves_king::{add_castle_moves, add_king_moves};
 use crate::moves_knight::add_knight_moves;
@@ -338,27 +338,72 @@ fn make_pawn_promotion_auto_queen(game: &mut Game, move_to_make: Move, start_pie
     }
 }
 
+
 #[test]
-fn perft() {
-    fn perft_func(depth: u32, game: &mut Game) -> u32 {
-        if depth == 0 {
-            return 1;
-        }
-        let mut nodes = 0;
+fn perft_starting() {
+    let _perft_1_fen_str = _STARTING_FEN_STR;
+    let expected_node_counts = [1, 20, 400, 8_902];
 
-        let n_moves = generate_moves(game);
-        for n_move in n_moves.iter() {
-            let mut new_game = game.clone();
-            make_move(&mut new_game, *n_move);
-            nodes += perft_func(depth - 1, &mut new_game)
-        }
-        nodes
+    let mut game = Game::initialize(_perft_1_fen_str);
+    run_perft_test(&mut game, expected_node_counts);
+}
+
+#[test]
+fn perft_2() {
+    let expected_node_counts = [1, 48, 2039, 97_862];
+
+    let mut game = Game::initialize(_PERFT_2_FEN_STR);
+    run_perft_test(&mut game, expected_node_counts);
+}
+
+#[test]
+fn perft_3() {
+    let expected_node_counts = [1, 14, 191, 2_812];
+
+    let mut game = Game::initialize(_PERFT_3_FEN_STR);
+    run_perft_test(&mut game, expected_node_counts);
+}
+
+#[test]
+fn perft_4() {
+    let expected_node_counts = [6, 264, 9467, 422_333];
+
+    let mut game = Game::initialize(_PERFT_4_FEN_STR);
+    run_perft_test(&mut game, expected_node_counts);
+}
+
+fn perft_5() {
+    let expected_node_counts = [44, 1_468, 62_379, 2_103_487];
+
+    let mut game = Game::initialize(_PERFT_5_FEN_STR);
+    run_perft_test(&mut game, expected_node_counts);
+}
+
+fn perft_6() {
+    let expected_node_counts = [1, 46, 2_079, 89_890];
+
+    let mut game = Game::initialize(_PERFT_6_FEN_STR);
+    run_perft_test(&mut game, expected_node_counts);
+}
+
+fn perft_func(depth: u32, game: &mut Game) -> u32 {
+    if depth == 0 {
+        return 1;
     }
+    let mut nodes = 0;
 
-    let mut game = Game::initialize();
-    let expected_node_counts = [1, 20, 400, 8_902, 197_281];
+    let n_moves = generate_moves(game);
+    for n_move in n_moves.iter() {
+        let mut new_game = game.clone();
+        make_move(&mut new_game, *n_move);
+        nodes += perft_func(depth - 1, &mut new_game)
+    }
+    nodes
+}
+
+fn run_perft_test(game: &mut Game, expected_node_counts: [u32; 4]) {
     for (depth, &expected_nodes) in expected_node_counts.iter().enumerate() {
-        let nodes = perft_func(depth as u32, &mut game);
+        let nodes = perft_func(depth as u32, game);
         assert_eq!(nodes, expected_nodes, "Mismatch at depth {}", depth);
         println!("Depth {}: Success! Expected {} nodes, got {}", depth, expected_nodes, nodes);
     }

@@ -10,8 +10,9 @@ mod moves_queen;
 mod moves_rook;
 
 use game::*;
+use crate::utils::*;
 
 fn main() {
-    let game = Game::initialize();
+    let game = Game::initialize(_STARTING_FEN_STR);
     game_loop(game)
 }
