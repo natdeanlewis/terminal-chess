@@ -87,7 +87,7 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
 
         let mut new_game = game.clone();
 
-        test_move(&mut new_game, possible_move);
+        make_move(&mut new_game, possible_move);
 
         if let Some(king) = new_game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != new_game.active_colour) {
             let king_square = bit_to_onebit_index(king.bit);
@@ -102,7 +102,7 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
 }
 
 pub fn inactive_colour_in_check(game: &mut Game, king_square: usize) -> bool {
-    let next_possible_moves= generate_pseudolegal_moves(game);
+    let next_possible_moves = generate_pseudolegal_moves(game);
     if next_possible_moves.iter().any(|m| m.to_square == king_square) {
         return true;
     }
@@ -126,22 +126,15 @@ pub fn square_under_threat(square_index: usize, opponent_moves: &Vec<Move>) -> b
     return opponent_moves.iter().any(|m| m.to_square == square_index)
 }
 
-pub fn test_move(game: &mut Game, move_to_make: Move) {
-    let start_bit = onebit_index_to_bit(move_to_make.from_square);
-    let end_bit = onebit_index_to_bit(move_to_make.to_square);
-
-    if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
-        make_pawn_promotion_auto_queen(game, move_to_make, start_piece_index);
-        make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
-    }
-}
-
 pub fn make_move(game: &mut Game, move_to_make: Move) {
     let start_bit = onebit_index_to_bit(move_to_make.from_square);
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
     if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
-        make_pawn_promotion_user_choice(game, move_to_make, start_piece_index);
+        // Promote first to avoid pawns being found on the last row when generating next moves
+        if let Some(promotion_piece)  = move_to_make.promotion {
+            game.pieces[start_piece_index].piece_type = promotion_piece;
+        };
         make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
     }
 }
@@ -291,54 +284,11 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
 }
 
 
-fn make_pawn_promotion_user_choice(game: &mut Game, move_to_make: Move, start_piece_index: usize) {
-    // Pawn promotion
-    let promotion_row;
-    if game.active_colour == Colour::White {
-        promotion_row = 7;
-    } else {
-        promotion_row = 0;
-    }
-    if game.pieces[start_piece_index].piece_type == PieceType::Pawn && move_to_make.to_square / 8 == promotion_row {
-        // TODO: add options to move gen for CPU?
-        if game.active_colour == Colour::Black {
-            game.pieces[start_piece_index].piece_type = PieceType::Queen;
-        } else {
-            let mut promotion_piece_type: Option<PieceType> = None;
-            while promotion_piece_type == None {
-                print_board(&game);
-                print!("Piece to promote to (Q for Queen, R for Rook, N for Knight, B for Bishop): ");
-                io::stdout().flush().unwrap();
-                let mut promotion_input = String::new();
-                io::stdin().read_line(&mut promotion_input).unwrap();
-                promotion_input = promotion_input.trim().to_string();
-                if promotion_input != "" {
-                    promotion_piece_type = match promotion_input.chars().next().unwrap().to_ascii_lowercase() {
-                        'q' => Some(PieceType::Queen),
-                        'r' => Some(PieceType::Rook),
-                        'n' => Some(PieceType::Knight),
-                        'b' => Some(PieceType::Bishop),
-                        _ => None,
-                    };
-                }
-            }
-            game.pieces[start_piece_index].piece_type = promotion_piece_type.expect("!");
-        }
+fn make_pawn_promotion(game: &mut Game, mut move_to_make: Move, start_piece_index: usize) {
+    if move_to_make.promotion != None {
+        game.pieces[start_piece_index].piece_type = move_to_make.promotion.unwrap();
     }
 }
-
-fn make_pawn_promotion_auto_queen(game: &mut Game, move_to_make: Move, start_piece_index: usize) {
-    let promotion_row;
-    if game.active_colour == Colour::White {
-        promotion_row = 7;
-    } else {
-        promotion_row = 0;
-    }
-    if game.pieces[start_piece_index].piece_type == PieceType::Pawn && move_to_make.to_square / 8 == promotion_row {
-        game.pieces[start_piece_index].piece_type = PieceType::Queen;
-    }
-}
-
 
 #[test]
 fn perft_starting() {

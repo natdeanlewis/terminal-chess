@@ -1,5 +1,5 @@
 use crate::game::{Colour, Game, PieceType};
-use crate::moves::{generate_moves, test_move, Move};
+use crate::moves::{generate_moves, make_move, Move};
 use crate::utils::bit_to_onebit_index;
 
 static PAWN_PST: [i32; 64] =
@@ -137,8 +137,9 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64,
         best_evaluation = f64::INFINITY;
         for possible_move in &game.possible_moves {
             let mut new_game = game.clone();
-            test_move(&mut new_game, *possible_move);
+            make_move(&mut new_game, *possible_move);
             new_game.possible_moves = generate_moves(&mut new_game);
+
             let (evaluation, _) = minimax(&mut new_game, depth - 1, false, alpha, beta);
 
             if evaluation < best_evaluation {
@@ -156,7 +157,7 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64,
         best_evaluation = f64::NEG_INFINITY;
         for possible_move in &game.possible_moves {
             let mut new_game = game.clone();
-            test_move(&mut new_game, *possible_move);
+            make_move(&mut new_game, *possible_move);
             new_game.possible_moves = generate_moves(&mut new_game);
 
             let (evaluation, _) = minimax(&mut new_game, depth - 1, true, alpha, beta);

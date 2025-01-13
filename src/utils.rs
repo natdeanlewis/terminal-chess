@@ -1,4 +1,6 @@
 use std::collections::VecDeque;
+use std::io;
+use std::io::Write;
 use crate::game::{Colour, Game, Piece, PieceType, Square};
 use crate::moves::Move;
 
@@ -15,6 +17,7 @@ static MOD67TABLE: [usize; 67] = [
 ];
 
 pub static _STARTING_FEN_STR: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+pub static _PROMOTION_FEN_STR: &str = "r3k2r/8/PPP5/8/8/8/8/RNBQKBNR w KQkq - 0 1";
 pub static _AMBIGUOUS_FEN_STR: &str = "3r3r/2k5/8/R7/4Q2Q/8/8/RK5Q w KQkq - 0 1";
 pub static _CASTLING_FEN_STR: &str = "5k2/8/8/8/8/8/2R5/R3K2R w KQkq - 0 1";
 pub static _ENDGAME_FEN_STR: &str = "1k6/7P/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
@@ -168,8 +171,33 @@ pub fn parse_algebraic_move(move_input: &str, game: &Game) -> Option<Move> {
         return Some(possible_matches[0])
     } else if possible_matches.len() > 1 {
         print_board(&game);
-        println!("Move is ambiguous, please double disambiguate (e.g. Qh4e1)");
-        return None
+        // If all matches are just the same pawn promoting to different pieces:
+        if possible_matches.iter().all(|m| m.from_square == possible_matches.iter().next().unwrap().from_square) {
+            let mut promotion_piece_type: Option<PieceType> = None;
+            while promotion_piece_type == None {
+                print_board(&game);
+                print!("Piece to promote to (Q for Queen, R for Rook, N for Knight, B for Bishop): ");
+                io::stdout().flush().unwrap();
+                let mut promotion_input = String::new();
+                io::stdin().read_line(&mut promotion_input).unwrap();
+                promotion_input = promotion_input.trim().to_string();
+                if promotion_input != "" {
+                    promotion_piece_type = match promotion_input.chars().next().unwrap().to_ascii_lowercase() {
+                        'q' => Some(PieceType::Queen),
+                        'r' => Some(PieceType::Rook),
+                        'n' => Some(PieceType::Knight),
+                        'b' => Some(PieceType::Bishop),
+                        _ => None,
+                    };
+                }
+            }
+            if let Some(matched) = possible_matches.iter().find(|&m| m.promotion == promotion_piece_type) {
+                return Some(*matched);
+            }
+        } else {
+            println!("Move is ambiguous, please double disambiguate (e.g. Qh4e1)");
+            return None
+        }
     }
     print_board(&game);
     println!("Invalid move, use algebraic notation without indication of captures (e.g. Nc3)");
