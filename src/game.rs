@@ -110,11 +110,11 @@ impl Game {
     pub fn initialize() -> Game {
         // let ambiguous_fen_str = "3r3r/2k5/8/R7/4Q2Q/8/8/RK5Q w KQkq - 0 1";
         let starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        // let endgame_fen_str: &str = "1k6/8/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
+        let endgame_fen_str: &str = "1k6/7P/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
         // let losing_fen_str: &str = "1k6/q1qq4/8/8/8/6P1/8/1K5Q w KQkq - 0 1";
         // let simple_fen_str: &str = "r3k3/8/8/8/8/8/8/R2QK3 w KQkq - 0 1";
         // let draw_fen_str: &str = "4kn1n/8/8/8/8/8/8/4K3 w KQkq - 0 1";
-        Game::read_FEN(starting_fen_str)
+        Game::read_FEN(endgame_fen_str)
     }
 
     fn to_string(&self) -> String {
@@ -657,8 +657,8 @@ pub fn game_loop(mut game: Game) {
                     // game.selected_piece_square = Some(start_onebit_index);
                     // print_board(&game);
                     // game.selected_piece_square = None;
-                    make_move(&mut game, input_move);
                     game.last_move = Some(input_move);
+                    make_move(&mut game, input_move);
                     game.possible_moves = generate_moves(&mut game);
                     print_board(&game);
                 } else {
@@ -684,19 +684,25 @@ fn make_pawn_promotion_user_choice(game: &mut Game, move_to_make: Move, start_pi
         if game.active_colour == Colour::Black {
             game.pieces[start_piece_index].piece_type = PieceType::Queen;
         } else {
-            print!("Piece to promote to (Q for Queen, R for Rook, N for Knight, B for Bishop): ");
-            io::stdout().flush().unwrap();
-            let mut promotion_input = String::new();
-            io::stdin().read_line(&mut promotion_input).unwrap();
-            promotion_input = promotion_input.trim().to_string();
-            let promotion_piece_type = match promotion_input.chars().next().unwrap().to_ascii_lowercase() {
-                'q' => PieceType::Queen,
-                'r' => PieceType::Rook,
-                'n' => PieceType::Knight,
-                'b' => PieceType::Bishop,
-                _ => {return}
-            };
-            game.pieces[start_piece_index].piece_type = promotion_piece_type;
+            let mut promotion_piece_type: Option<PieceType> = None;
+            while promotion_piece_type == None {
+                print_board(&game);
+                print!("Piece to promote to (Q for Queen, R for Rook, N for Knight, B for Bishop): ");
+                io::stdout().flush().unwrap();
+                let mut promotion_input = String::new();
+                io::stdin().read_line(&mut promotion_input).unwrap();
+                promotion_input = promotion_input.trim().to_string();
+                if promotion_input != "" {
+                    promotion_piece_type = match promotion_input.chars().next().unwrap().to_ascii_lowercase() {
+                        'q' => Some(PieceType::Queen),
+                        'r' => Some(PieceType::Rook),
+                        'n' => Some(PieceType::Knight),
+                        'b' => Some(PieceType::Bishop),
+                        _ => None,
+                    };
+                }
+            }
+            game.pieces[start_piece_index].piece_type = promotion_piece_type.expect("!");
         }
     }
 }
