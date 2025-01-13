@@ -1,3 +1,7 @@
+use std::collections::VecDeque;
+use crate::game::{Colour, Game, Piece, PieceType, Square};
+use crate::moves::Move;
+
 static MOD67TABLE: [usize; 67] = [
     64, 0, 1, 39, 2, 15, 40, 23,
     3, 12, 16, 59, 41, 19, 24, 54,
@@ -78,4 +82,133 @@ pub fn split_on(s: &str, sep: char) -> (&str, &str) {
         }
     }
     (&s[..], "")
+}
+
+
+pub fn get_piece_index(square: &Square) -> Option<usize> {
+    match square {
+        Square::Occupied(piece_index) => Some(*piece_index),
+        Square::Empty => None,
+    }
+}
+
+#[allow(non_snake_case)]
+pub fn parse_FEN_row(row: &str, mut piece_index: usize, mut onebit_index: usize) -> (Vec<Piece>, VecDeque<Square>) {
+    let mut pieces = Vec::new();
+    let mut squares = VecDeque::new();
+
+    let mut colour;
+
+
+    macro_rules! add_piece {
+        ($piece_type:ident) => {
+            {
+                let piece = Piece {
+                        colour: colour,
+                        bit: (1 as u64) << onebit_index,
+                        piece_type: PieceType::$piece_type,
+                        taken: false,
+                    };
+                    let square = Square::Occupied(piece_index);
+                    pieces.push(piece);
+                    squares.push_front(square);
+                    onebit_index += 1;
+                    piece_index += 1;
+            }
+        };
+    }
+    for ch in row.chars() {
+        let is_upper = ch.is_ascii_uppercase();
+        colour = if is_upper { Colour::White } else { Colour::Black };
+        match ch.to_ascii_lowercase() {
+            'r' => {add_piece!(Rook)},
+            'b' => {add_piece!(Bishop)},
+            'n' => {add_piece!(Knight)},
+            'q' => {add_piece!(Queen)},
+            'k' => {add_piece!(King)},
+            'p' => {add_piece!(Pawn)},
+            num => {
+                match num.to_digit(10) {
+                    None => panic!("Invalid input: {}", num),
+                    Some(number) => for _i in 0..number {
+                        squares.push_front(Square::Empty);
+                        onebit_index += 1;
+                    }
+                }
+            }
+        }
+    }
+    (pieces, squares)
+}
+
+pub fn parse_algebraic_move(move_input: &str, game: &Game) -> Option<Move> {
+    let mut possible_matches = vec![];
+    for possible_move in game.possible_moves.clone() {
+        if move_to_ambiguous_algebraic_notation(game, possible_move) == Some(move_input.to_owned().to_ascii_lowercase()) {
+            possible_matches.push(possible_move);
+        }
+        if move_to_unambiguous_algebraic_notation(game, possible_move) == Some(move_input.to_owned().to_ascii_lowercase()) {
+            possible_matches.push(possible_move);
+        }
+    }
+    if possible_matches.len() == 1 {
+        return Some(possible_matches[0])
+    } else if possible_matches.len() > 1 {
+        print_board(&game);
+        println!("Move is ambiguous, please double disambiguate (e.g. Qh4e1)");
+        return None
+    }
+    print_board(&game);
+    println!("Invalid move, use algebraic notation without indication of captures (e.g. Nc3)");
+    return None
+}
+
+fn move_to_unambiguous_algebraic_notation(game: &Game, possible_move: Move) -> Option<String> {
+    let from_bit = onebit_index_to_bit(possible_move.from_square);
+    if let Some(piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == from_bit && p.colour == game.active_colour) {
+        let mut algebraic_move = "".to_owned();
+        match piece.piece_type {
+            PieceType::Bishop => algebraic_move.push_str("b"),
+            PieceType::Knight => algebraic_move.push_str("n"),
+            PieceType::Rook => algebraic_move.push_str("r"),
+            PieceType::King => algebraic_move.push_str("k"),
+            PieceType::Queen => algebraic_move.push_str("q"),
+            PieceType::Pawn => (),
+        }
+        let from_coords = onebit_index_to_coords(possible_move.from_square);
+        let to_coords = onebit_index_to_coords(possible_move.to_square);
+        algebraic_move.push_str(&from_coords);
+        algebraic_move.push_str(&to_coords);
+        Some(algebraic_move)
+
+    } else {
+        return None
+    }
+}
+
+fn move_to_ambiguous_algebraic_notation(game: &Game, possible_move: Move) -> Option<String> {
+    let from_bit = onebit_index_to_bit(possible_move.from_square);
+    if let Some(piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == from_bit && p.colour == game.active_colour) {
+        let mut algebraic_move = "".to_owned();
+        match piece.piece_type {
+            PieceType::Bishop => algebraic_move.push_str("b"),
+            PieceType::Knight => algebraic_move.push_str("n"),
+            PieceType::Rook => algebraic_move.push_str("r"),
+            PieceType::King => algebraic_move.push_str("k"),
+            PieceType::Queen => algebraic_move.push_str("q"),
+            PieceType::Pawn => (),
+        }
+        let to_coords = onebit_index_to_coords(possible_move.to_square);
+        algebraic_move.push_str(&to_coords);
+        Some(algebraic_move)
+
+    } else {
+        return None
+    }
+}
+
+
+pub fn print_board(game: &Game) {
+    print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+    println!("{}", game.to_string());
 }

@@ -1,6 +1,7 @@
 mod utils;
 mod game;
 mod moves;
+mod evaluation;
 
 use game::*;
 
