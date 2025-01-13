@@ -17,7 +17,7 @@ static MOD67TABLE: [usize; 67] = [
 ];
 
 pub static _STARTING_FEN_STR: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-pub static _PROMOTION_FEN_STR: &str = "r3k2r/8/PPP5/8/8/8/8/RNBQKBNR w KQkq - 0 1";
+pub static _PROMOTION_FEN_STR: &str = "1n2k21/PPP5/4PPPP/8/8/8/8/RNBQKBNR w KQkq - 0 1";
 pub static _AMBIGUOUS_FEN_STR: &str = "3r3r/2k5/8/R7/4Q2Q/8/8/RK5Q w KQkq - 0 1";
 pub static _CASTLING_FEN_STR: &str = "5k2/8/8/8/8/8/2R5/R3K2R w KQkq - 0 1";
 pub static _ENDGAME_FEN_STR: &str = "1k6/7P/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
