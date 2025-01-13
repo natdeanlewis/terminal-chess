@@ -1,10 +1,10 @@
 use bitflags::bitflags;
+use core::f64;
 use std::collections::VecDeque;
 use std::io;
 use std::io::Write;
 use crate::utils::*;
 use crate::moves::*;
-use rand::seq::SliceRandom;
 
 // e.g.s:
 // coords: e4
@@ -13,7 +13,7 @@ use rand::seq::SliceRandom;
 // piece_index = count of piece (0 to 31)
 // position: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 (board state)
 
-
+// TODO: castling under check if checking for own target moves not opponents?
 // TODO: generate moves for each piece for a given board state
 // and then use these to only allow legal moves.
 // later use these for the engine to calculate good and bad moves
@@ -27,18 +27,27 @@ use rand::seq::SliceRandom;
 // castling done
 // en passant done
 // pawn promotions done
-// algebraic move notation?
+// algebraic move notation? done
+// alert when check? done
+// check done
+// checkmate done
+// stalemate done
+// don't allow castling when ONLY king square is threatened (castling out of check) done
+// show last move and eval
 // tests
-// check
-// checkmate
-// stalemate
+// perft
 // repetition draws
 // optimisation
 // board evaluation
 // positional skewing
 // search
 // minimax
-// alphabeta pruning
+// alphabeta pruning done
+// test alphabeta pruning!
+// play multiple colours
+// mouse gui
+// full algebraic move notation?
+// allow non-queen promotion when testing moves
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Colour {
@@ -80,7 +89,8 @@ pub struct Game {
     pub halfmove_clock: usize,
     pub fullmove_number: usize,
     possible_moves: Vec<Move>,
-    selected_piece_square: Option<usize>,
+    colour_in_check: Option<Colour>,
+    last_move: Option<Move>,
 }
 
 bitflags! {
@@ -97,8 +107,14 @@ bitflags! {
 
 impl Game {
     pub fn initialize() -> Game {
-        let starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        Game::read_FEN(starting_fen_str)
+        let _ambiguous_fen_str = "3r3r/2k5/8/R7/4Q2Q/8/8/RK5Q w KQkq - 0 1";
+        let _starting_fen_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        let _endgame_fen_str: &str = "1k6/7P/8/8/8/8/8/RNBQKBNR w KQkq - 0 1";
+        let _losing_fen_str: &str = "1k6/q1qq4/8/8/8/6P1/8/1K5Q w KQkq - 0 1";
+        let _simple_fen_str: &str = "r3k3/8/8/8/8/8/8/R2QK3 w KQkq - 0 1";
+        let _draw_fen_str: &str = "4kn1n/8/8/8/8/8/8/4K3 w KQkq - 0 1";
+        let fen_str = _starting_fen_str;
+        Game::read_FEN(fen_str)
     }
 
     fn to_string(&self) -> String {
@@ -111,15 +127,17 @@ impl Game {
             }
 
             let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
-            // Selected piece highlighting
-            if Some(i) == self.selected_piece_square {
-                background_colour = "\x1b[48;5;112m";
-            }
-            // Possible move highlighting
-            if let Some(_possible_move) = self.possible_moves.iter().find(|&m| Some(m.from_square) == self.selected_piece_square &&  m.to_square == i) {
-                background_colour = "\x1b[48;5;149m";
 
+            // Last move highlighting
+            if let Some(last_move) = self.last_move {
+                if i == last_move.to_square {
+                    background_colour = "\x1b[48;5;112m";
+                }
+                if i == last_move.from_square {
+                    background_colour = "\x1b[48;5;149m";
+                }
             }
+            
 
             temp.push_str(background_colour);
             match square {
@@ -131,13 +149,15 @@ impl Game {
             }
             let colour_end = "\x1b[0m";
             temp.push_str(colour_end);
-
             if (i + 1) % 8 == 0 {
+                temp.push_str(&format!(" {}", (i / 8) + 1));
                 temp.push_str("\n");
                 board.insert_str(0, &temp);
                 temp.clear();
             }
         }
+        board.insert_str(0, "   a  b  c  d  e  f  g  h\n");
+    
         board.insert_str(0, &temp);
         board
     }
@@ -153,7 +173,8 @@ impl Game {
             halfmove_clock: 0,
             fullmove_number: 1,
             possible_moves: vec![],
-            selected_piece_square: None,
+            colour_in_check: None,
+            last_move: None
         };
 
         let (position, rest) = split_on(fen, ' ');
@@ -217,6 +238,7 @@ impl Game {
             Ok(num) => game.fullmove_number = num,
             Err(_) => panic!("Invalid fullmove: '{}'", fullmove_number),
         }
+        // TODO: set colour_in_check if in check
         game
     }
 }
@@ -303,80 +325,393 @@ fn get_piece_index(square: &Square) -> Option<usize> {
     }
 }
 
+fn move_to_unambiguous_algebraic_notation(game: &Game, possible_move: Move) -> Option<String> {
+    let from_bit = onebit_index_to_bit(possible_move.from_square);
+    if let Some(piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == from_bit && p.colour == game.active_colour) {
+        let mut algebraic_move = "".to_owned();
+        match piece.piece_type {
+            PieceType::Bishop => algebraic_move.push_str("b"),
+            PieceType::Knight => algebraic_move.push_str("n"),
+            PieceType::Rook => algebraic_move.push_str("r"),
+            PieceType::King => algebraic_move.push_str("k"),
+            PieceType::Queen => algebraic_move.push_str("q"),
+            PieceType::Pawn => (),
+        }
+        let from_coords = onebit_index_to_coords(possible_move.from_square);
+        let to_coords = onebit_index_to_coords(possible_move.to_square);
+        algebraic_move.push_str(&from_coords);
+        algebraic_move.push_str(&to_coords);
+        Some(algebraic_move)
+
+    } else {
+        return None
+    }
+}
+
+fn move_to_ambiguous_algebraic_notation(game: &Game, possible_move: Move) -> Option<String> {
+    let from_bit = onebit_index_to_bit(possible_move.from_square);
+    if let Some(piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == from_bit && p.colour == game.active_colour) {
+        let mut algebraic_move = "".to_owned();
+        match piece.piece_type {
+            PieceType::Bishop => algebraic_move.push_str("b"),
+            PieceType::Knight => algebraic_move.push_str("n"),
+            PieceType::Rook => algebraic_move.push_str("r"),
+            PieceType::King => algebraic_move.push_str("k"),
+            PieceType::Queen => algebraic_move.push_str("q"),
+            PieceType::Pawn => (),
+        }
+        let to_coords = onebit_index_to_coords(possible_move.to_square);
+        algebraic_move.push_str(&to_coords);
+        Some(algebraic_move)
+
+    } else {
+        return None
+    }
+}
+
+fn parse_algebraic_move(move_input: &str, game: &Game) -> Option<Move> {
+    let mut possible_matches = vec![];
+    for possible_move in game.possible_moves.clone() {
+        if move_to_ambiguous_algebraic_notation(game, possible_move) == Some(move_input.to_owned().to_ascii_lowercase()) {
+            possible_matches.push(possible_move);
+        }
+        if move_to_unambiguous_algebraic_notation(game, possible_move) == Some(move_input.to_owned().to_ascii_lowercase()) {
+            possible_matches.push(possible_move);
+        }
+    }
+    if possible_matches.len() == 1 {
+        return Some(possible_matches[0])
+    } else if possible_matches.len() > 1 {
+        print_board(&game);
+        println!("Move is ambiguous, please double disambiguate (e.g. Qh4e1)");
+        return None
+    }
+    print_board(&game);
+    println!("Invalid move, use algebraic notation without indication of captures (e.g. Nc3)");
+    return None
+}
+
+static PAWN_PST: [i32; 64] =
+[0,  0,  0,  0,  0,  0,  0,  0,
+50, 50, 50, 50, 50, 50, 50, 50,
+10, 10, 20, 30, 30, 20, 10, 10,
+ 5,  5, 10, 25, 25, 10,  5,  5,
+ 0,  0,  0, 20, 20,  0,  0,  0,
+ 5, -5,-10,  0,  0,-10, -5,  5,
+ 5, 10, 10,-20,-20, 10, 10,  5,
+ 0,  0,  0,  0,  0,  0,  0,  0];
+
+ static KNIGHT_PST: [i32; 64] =
+ [-50,-40,-30,-30,-30,-30,-40,-50,
+-40,-20,  0,  0,  0,  0,-20,-40,
+-30,  0, 10, 15, 15, 10,  0,-30,
+-30,  5, 15, 20, 20, 15,  5,-30,
+-30,  0, 15, 20, 20, 15,  0,-30,
+-30,  5, 10, 15, 15, 10,  5,-30,
+-40,-20,  0,  5,  5,  0,-20,-40,
+-50,-40,-30,-30,-30,-30,-40,-50];
+
+static BISHOP_PST: [i32; 64] =
+[-20,-10,-10,-10,-10,-10,-10,-20,
+-10,  0,  0,  0,  0,  0,  0,-10,
+-10,  0,  5, 10, 10,  5,  0,-10,
+-10,  5,  5, 10, 10,  5,  5,-10,
+-10,  0, 10, 10, 10, 10,  0,-10,
+-10, 10, 10, 10, 10, 10, 10,-10,
+-10,  5,  0,  0,  0,  0,  5,-10,
+-20,-10,-10,-10,-10,-10,-10,-20];
+
+static ROOK_PST: [i32; 64] =
+[0,  0,  0,  0,  0,  0,  0,  0,
+5, 10, 10, 10, 10, 10, 10,  5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+0,  0,  0,  5,  5,  0,  0,  0];
+
+static QUEEN_PST: [i32; 64] =
+[-20,-10,-10, -5, -5,-10,-10,-20,
+-10,  0,  0,  0,  0,  0,  0,-10,
+-10,  0,  5,  5,  5,  5,  0,-10,
+ -5,  0,  5,  5,  5,  5,  0, -5,
+  0,  0,  5,  5,  5,  5,  0, -5,
+-10,  5,  5,  5,  5,  5,  0,-10,
+-10,  0,  5,  0,  0,  0,  0,-10,
+-20,-10,-10, -5, -5,-10,-10,-20];
+
+static KING_MIDDLEGAME: [i32; 64] =
+[-30,-40,-40,-50,-50,-40,-40,-30,
+-30,-40,-40,-50,-50,-40,-40,-30,
+-30,-40,-40,-50,-50,-40,-40,-30,
+-30,-40,-40,-50,-50,-40,-40,-30,
+-20,-30,-30,-40,-40,-30,-30,-20,
+-10,-20,-20,-20,-20,-20,-20,-10,
+ 20, 20,  0,  0,  0,  0, 20, 20,
+ 20, 30, 10,  0,  0, 10, 30, 20];
+
+ // TODO: incorporate this
+static _KING_ENDGAME: [i32; 64] =
+[-50,-40,-30,-20,-20,-30,-40,-50,
+-30,-20,-10,  0,  0,-10,-20,-30,
+-30,-10, 20, 30, 30, 20,-10,-30,
+-30,-10, 30, 40, 40, 30,-10,-30,
+-30,-10, 30, 40, 40, 30,-10,-30,
+-30,-10, 20, 30, 30, 20,-10,-30,
+-30,-30,  0,  0,  0,  0,-30,-30,
+-50,-30,-30,-30,-30,-30,-30,-50];
+
+
+
+fn evaluate_game(test_game: &mut Game) -> f64 {
+    let mut evaluation = 0;
+    let mut piece_evaluation = 0;
+    for piece in test_game.pieces.clone() {
+        let piece_square = bit_to_onebit_index(piece.bit);
+
+        if piece.colour == Colour::White && piece.taken == false {
+            match piece.piece_type {
+                PieceType::Pawn => piece_evaluation += 100 + PAWN_PST[63 - piece_square],
+                PieceType::Bishop => piece_evaluation += 320 + BISHOP_PST[63 - piece_square],
+                PieceType::Knight => piece_evaluation += 330 + KNIGHT_PST[63 - piece_square],
+                PieceType::Rook => piece_evaluation += 500 + ROOK_PST[63 - piece_square],
+                PieceType::Queen => piece_evaluation += 900 + QUEEN_PST[63 - piece_square],
+                PieceType::King => piece_evaluation += 20000 + KING_MIDDLEGAME[63 - piece_square],
+            }
+        }
+        if piece.colour == Colour::Black && piece.taken == false {
+            match piece.piece_type {
+                PieceType::Pawn => piece_evaluation -= 100 + PAWN_PST[piece_square],
+                PieceType::Bishop => piece_evaluation -= 320 + BISHOP_PST[piece_square],
+                PieceType::Knight => piece_evaluation -= 330 + KNIGHT_PST[piece_square],
+                PieceType::Rook => piece_evaluation -= 500 + ROOK_PST[piece_square],
+                PieceType::Queen => piece_evaluation -= 900 + QUEEN_PST[piece_square],
+                PieceType::King => piece_evaluation -= 20000 + KING_MIDDLEGAME[piece_square],
+            }
+        }
+    }
+
+    evaluation += piece_evaluation;
+
+    if test_game.colour_in_check == Some(Colour::White) {
+        if test_game.possible_moves.len() == 0 {
+            evaluation -= 10000;
+        } else {
+            evaluation -= 50;
+        }
+    }
+
+    if test_game.colour_in_check == Some(Colour::Black) {
+        if test_game.possible_moves.len() == 0 {
+            evaluation += 10000;
+        } else {
+            evaluation += 50;
+        }
+    }
+//  TODO: checkmate bonus
+
+    return evaluation as f64 / 100.0
+}
+
+fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, mut alpha: f64, mut beta: f64) -> (f64, Option<Move>) {
+// Base case: If depth is 0 or game over, return the evaluation of the game
+    if depth == 0 || game.possible_moves.len() == 0 {
+        return (evaluate_game(game), None);
+    }
+
+    let mut best_move: Option<Move> = None;
+    let mut best_evaluation: f64;
+
+    if maximizing_player {
+        best_evaluation = f64::INFINITY;
+        for possible_move in &game.possible_moves {
+            let mut new_game = game.clone();
+            test_move(&mut new_game, *possible_move);
+            new_game.possible_moves = generate_moves(&mut new_game);
+            let (evaluation, _) = minimax(&mut new_game, depth - 1, false, alpha, beta);
+
+            if evaluation < best_evaluation {
+                best_evaluation = evaluation;
+                best_move = Some(*possible_move);
+            }
+
+            if best_evaluation <= beta {
+                break;
+            }
+            alpha = alpha.min(best_evaluation);
+        }
+
+    } else {
+        best_evaluation = f64::NEG_INFINITY;
+        for possible_move in &game.possible_moves {
+            let mut new_game = game.clone();
+            test_move(&mut new_game, *possible_move);
+            new_game.possible_moves = generate_moves(&mut new_game);
+
+            let (evaluation, _) = minimax(&mut new_game, depth - 1, true, alpha, beta);
+
+            if evaluation > best_evaluation {
+                best_evaluation = evaluation;
+                best_move = Some(*possible_move);
+            }
+
+            if best_evaluation >= alpha {
+                break;
+            }
+            beta = beta.max(best_evaluation);
+        }
+    }
+
+    (best_evaluation, best_move)
+}
+
+fn iterative_deepening_minimax(game: &mut Game, max_depth: u32) -> Option<Move> {
+    let mut best_move: Option<Move> = None;
+    let mut best_evaluation: f64;
+    
+    for depth in 1..=max_depth {
+        best_evaluation = f64::INFINITY;
+        let (evaluation, best) = minimax(game, depth, true, f64::INFINITY, f64::NEG_INFINITY);
+        // Store the best move if evaluation improves
+        if evaluation < best_evaluation {
+            best_move = best;
+        }
+    }
+
+    best_move
+}
+
 pub fn game_loop(mut game: Game) {
     game.possible_moves = generate_moves(&mut game);
-
     print_board(&game);
 
     loop {
-        println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
+        // if both sides have only a king with knights or bishops
+        if game.pieces.iter().filter(|piece| !piece.taken && [PieceType::Queen, PieceType::Rook, PieceType::Pawn].contains(&piece.piece_type)).count() == 0 {
+            if game.pieces.iter().filter(|piece| piece.colour == Colour::White && !piece.taken).count() <= 2 && game.pieces.iter().filter(|piece| piece.colour == Colour::Black && !piece.taken).count() <= 2 {
+                println!{"Draw!"};
+                break
+            }
+        } 
         if game.active_colour == Colour::Black {
-            if let Some(random_move) = game.possible_moves.choose(&mut rand::thread_rng()) {
-                let random_move = *random_move;
-                make_move(&mut game, random_move);
+            if game.possible_moves.len() == 0 {
+                if game.colour_in_check == Some(game.active_colour) {
+                    println!{"Checkmate! White wins."};
+                } else {
+                    println!{"Stalemate!"};
+                }
+                break
+            }
+            if game.colour_in_check == Some(game.active_colour) {
+                println!("Check!");
+            }
+            
+            println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
+            
+            println!("Thinking...");
+            let max_depth = 2;
+            if let Some(best_move) = iterative_deepening_minimax(&mut game, max_depth) {
+                make_move(&mut game, best_move);
+                game.last_move = Some(best_move);
                 game.possible_moves = generate_moves(&mut game);
                 print_board(&game);
-            } else {
-                // TODO: check for stalemate here
-                println!{"Game over"};
-                break
             }
         } else {
             if game.possible_moves.len() == 0 {
-                // TODO: check for stalemate here
-                println!("Game over");
+                if game.colour_in_check == Some(game.active_colour) {
+                    println!{"Checkmate! Black wins."};
+                } else {
+                    println!{"Stalemate!"};
+                }
                 break
             }
-            print!("Piece coordinates: ");
+            if game.colour_in_check == Some(game.active_colour) {
+                println!("Check!");
+            }
+            
+            println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
+            
+    
+
+            print!("Enter move: ");
             io::stdout().flush().unwrap();
-            let mut start_input = String::new();
-            io::stdin().read_line(&mut start_input).unwrap();
-            start_input = start_input.trim().to_string();
-    
-            if let Ok(start_bit) = coords_to_bit(&start_input) {
-                let start_onebit_index = bit_to_onebit_index(start_bit);
+            let mut move_input = String::new();
+            io::stdin().read_line(&mut move_input).unwrap();
+            move_input = move_input.trim().to_string();
+
+            if let Some(input_move) = parse_algebraic_move(&move_input, &game) {   
+                let start_bit = onebit_index_to_bit(input_move.from_square);
                 if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
-                    game.selected_piece_square = Some(start_onebit_index);
+                    game.last_move = Some(input_move);
+                    make_move(&mut game, input_move);
+                    game.possible_moves = generate_moves(&mut game);
                     print_board(&game);
-                    game.selected_piece_square = None;
-
-                    print!("Target coordinates: ");
-                    io::stdout().flush().unwrap();
-                    let mut end_input = String::new();
-                    io::stdin().read_line(&mut end_input).unwrap();
-                    end_input = end_input.trim().to_string();
-    
-                    if let Ok(end_bit) = coords_to_bit(&end_input) {
-                        let end_onebit_index = bit_to_onebit_index(end_bit);
-                        let input_move = Move {
-                            from_square: start_onebit_index,
-                            to_square: end_onebit_index,
-                        };
-
-                        if game.possible_moves.contains(&input_move) {
-                            make_move(&mut game, input_move);
-                            game.possible_moves = generate_moves(&mut game);
-                            print_board(&game);
-
-                        } else {
-                            print_board(&game);
-                            println!("Invalid move");
-                        }
-    
-                    } else {
-                        print_board(&game);
-                        println!("Invalid input");
-                    }
                 } else {
                     print_board(&game);
-                    println!("No {:?} piece at {}", game.active_colour, start_input);
+                    println!("Invalid move");
                 }
-            } else {
-                print_board(&game);
-                println!("Invalid input");
             }
         }
         
+    }
+}
+
+fn make_pawn_promotion_user_choice(game: &mut Game, move_to_make: Move, start_piece_index: usize) {
+    // Pawn promotion
+    let promotion_row;
+    if game.active_colour == Colour::White {
+        promotion_row = 7;
+    } else {
+        promotion_row = 0;
+    }
+    if game.pieces[start_piece_index].piece_type == PieceType::Pawn && move_to_make.to_square / 8 == promotion_row {
+        // TODO: add options to move gen for CPU?
+        if game.active_colour == Colour::Black {
+            game.pieces[start_piece_index].piece_type = PieceType::Queen;
+        } else {
+            let mut promotion_piece_type: Option<PieceType> = None;
+            while promotion_piece_type == None {
+                print_board(&game);
+                print!("Piece to promote to (Q for Queen, R for Rook, N for Knight, B for Bishop): ");
+                io::stdout().flush().unwrap();
+                let mut promotion_input = String::new();
+                io::stdin().read_line(&mut promotion_input).unwrap();
+                promotion_input = promotion_input.trim().to_string();
+                if promotion_input != "" {
+                    promotion_piece_type = match promotion_input.chars().next().unwrap().to_ascii_lowercase() {
+                        'q' => Some(PieceType::Queen),
+                        'r' => Some(PieceType::Rook),
+                        'n' => Some(PieceType::Knight),
+                        'b' => Some(PieceType::Bishop),
+                        _ => None,
+                    };
+                }
+            }
+            game.pieces[start_piece_index].piece_type = promotion_piece_type.expect("!");
+        }
+    }
+}
+
+fn make_pawn_promotion_auto_queen(game: &mut Game, move_to_make: Move, start_piece_index: usize) {
+    let promotion_row;
+    if game.active_colour == Colour::White {
+        promotion_row = 7;
+    } else {
+        promotion_row = 0;
+    }
+    if game.pieces[start_piece_index].piece_type == PieceType::Pawn && move_to_make.to_square / 8 == promotion_row {
+        game.pieces[start_piece_index].piece_type = PieceType::Queen;
+    }
+}
+
+pub fn test_move(game: &mut Game, move_to_make: Move) {
+    let start_bit = onebit_index_to_bit(move_to_make.from_square);
+    let end_bit = onebit_index_to_bit(move_to_make.to_square);
+
+    if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
+        make_pawn_promotion_auto_queen(game, move_to_make, start_piece_index);
+        make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
     }
 }
 
@@ -385,54 +720,104 @@ pub fn make_move(game: &mut Game, move_to_make: Move) {
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
     if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
-        // Castling
-        if game.pieces[start_piece_index].piece_type == PieceType::King {
-            // Remove queen and king side castling rights
-            match game.active_colour {
-                Colour::White => {
-                    game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
-                    game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
-                }
-                Colour::Black => {
-                    game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
-                    game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE);
-                }
-            }
-            if (move_to_make.to_square as isize - move_to_make.from_square as isize).abs() == 2 {
-                let king_side_rook_square;
-                let queen_side_rook_square;
-                if game.active_colour == Colour::White {
-                    king_side_rook_square = 7;
-                    queen_side_rook_square = 0;
-                } else {
-                    king_side_rook_square = 63;
-                    queen_side_rook_square = 56;
-                }
+        make_pawn_promotion_user_choice(game, move_to_make, start_piece_index);
+        make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
+    }
+}
 
-                if move_to_make.to_square > move_to_make.from_square {
-                    // King side rook
-                    if let Some(rook) = game.pieces.iter_mut().find(|p| p.bit == onebit_index_to_bit(king_side_rook_square)) {
-                        rook.bit = onebit_index_to_bit(move_to_make.from_square + 1);
-                    }
-                    if let Some(rook_piece_index) = get_piece_index(&game.squares[move_to_make.from_square + 3]) {
-                        game.squares[move_to_make.from_square + 1] = Square::Occupied(rook_piece_index);
-                        game.squares[move_to_make.from_square + 3] = Square::Empty;
-                    }
-                } else {
-                    // Queen side rook
-                    if let Some(rook) = game.pieces.iter_mut().find(|p| p.bit == onebit_index_to_bit(queen_side_rook_square)) {
-                        rook.bit = onebit_index_to_bit(move_to_make.from_square - 1);
-                    }
-                    if let Some(rook_piece_index) = get_piece_index(&game.squares[move_to_make.from_square - 4]) {
-                        game.squares[move_to_make.from_square - 1] = Square::Occupied(rook_piece_index);
-                        game.squares[move_to_make.from_square - 4] = Square::Empty;
-                    }
+fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece_index: usize, end_bit: u64) {
+    // Castling
+    if game.pieces[start_piece_index].piece_type == PieceType::King {
+        // Remove queen and king side castling rights
+        match game.active_colour {
+            Colour::White => {
+                game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
+                game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
+            }
+            Colour::Black => {
+                game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
+                game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE);
+            }
+        }
+        if (move_to_make.to_square as isize - move_to_make.from_square as isize).abs() == 2 {
+            let king_side_rook_square;
+            let queen_side_rook_square;
+            if game.active_colour == Colour::White {
+                king_side_rook_square = 7;
+                queen_side_rook_square = 0;
+            } else {
+                king_side_rook_square = 63;
+                queen_side_rook_square = 56;
+            }
+
+            if move_to_make.to_square > move_to_make.from_square {
+                // King side rook
+                if let Some(rook) = game.pieces.iter_mut().find(|p| p.bit == onebit_index_to_bit(king_side_rook_square)) {
+                    rook.bit = onebit_index_to_bit(move_to_make.from_square + 1);
+                }
+                if let Some(rook_piece_index) = get_piece_index(&game.squares[move_to_make.from_square + 3]) {
+                    game.squares[move_to_make.from_square + 1] = Square::Occupied(rook_piece_index);
+                    game.squares[move_to_make.from_square + 3] = Square::Empty;
+                }
+            } else {
+                // Queen side rook
+                if let Some(rook) = game.pieces.iter_mut().find(|p| p.bit == onebit_index_to_bit(queen_side_rook_square)) {
+                    rook.bit = onebit_index_to_bit(move_to_make.from_square - 1);
+                }
+                if let Some(rook_piece_index) = get_piece_index(&game.squares[move_to_make.from_square - 4]) {
+                    game.squares[move_to_make.from_square - 1] = Square::Occupied(rook_piece_index);
+                    game.squares[move_to_make.from_square - 4] = Square::Empty;
                 }
             }
         }
-        if game.pieces[start_piece_index].piece_type == PieceType::Rook {
-            //Remove this rook's side castling rights
-            match start_piece_index {
+    }
+    if game.pieces[start_piece_index].piece_type == PieceType::Rook {
+        //Remove this rook's side castling rights
+        match start_piece_index {
+            0 => {
+                game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
+            }
+            7 => {
+                game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
+            }
+            56 => {
+                game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE);
+            }
+            63 => {
+                game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
+            }
+            _ => {}
+        }
+
+    }
+
+    // En passant capture
+    match game.en_passant {
+        Some(en_passant_bit) => {
+            if end_bit == en_passant_bit && game.pieces[start_piece_index].piece_type == PieceType::Pawn {
+                let captured_piece_square;
+                if game.active_colour == Colour::White {
+                    captured_piece_square = move_to_make.to_square - 8;
+                } else {
+                    captured_piece_square = move_to_make.to_square + 8;
+                }
+                let captured_piece_bit = onebit_index_to_bit(captured_piece_square);
+                if let Some(captured_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == captured_piece_bit) {
+                    game.pieces[captured_piece_index].taken = true;
+                    game.squares[captured_piece_square] = Square::Empty;
+                }
+            }
+        }
+        _ => {}
+    }
+
+    // Standard capture
+    if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
+        game.pieces[target_index].taken = true;
+        if game.pieces[target_index].piece_type == PieceType::Rook {
+            // Remove this rook's side castling rights
+            let captured_piece_square = bit_to_onebit_index(game.pieces[target_index].bit);
+            match captured_piece_square {
                 0 => {
                     game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
                 }
@@ -447,102 +832,41 @@ pub fn make_move(game: &mut Game, move_to_make: Move) {
                 }
                 _ => {}
             }
-
         }
-
-        // Pawn promotion
-        let promotion_row;
-        if game.active_colour == Colour::White {
-            promotion_row = 7;
-        } else {
-            promotion_row = 0;
-        }
-        if game.pieces[start_piece_index].piece_type == PieceType::Pawn && move_to_make.to_square / 8 == promotion_row {
-            // TODO: add options to move gen for CPU?
-            if game.active_colour == Colour::Black {
-                game.pieces[start_piece_index].piece_type = PieceType::Queen;
-            } else {
-                print!("Piece to promote to (Q for Queen, R for Rook, N for Knight, B for Bishop): ");
-                io::stdout().flush().unwrap();
-                let mut promotion_input = String::new();
-                io::stdin().read_line(&mut promotion_input).unwrap();
-                promotion_input = promotion_input.trim().to_string();
-                let promotion_piece_type = match promotion_input.chars().next().unwrap().to_ascii_lowercase() {
-                    'q' => PieceType::Queen,
-                    'r' => PieceType::Rook,
-                    'n' => PieceType::Knight,
-                    'b' => PieceType::Bishop,
-                    _ => {return}
-                };
-                game.pieces[start_piece_index].piece_type = promotion_piece_type;
-            }
-        }
-
-        // En passant capture
-        match game.en_passant {
-            Some(en_passant_bit) => {
-                if end_bit == en_passant_bit && game.pieces[start_piece_index].piece_type == PieceType::Pawn {
-                    let captured_piece_square;
-                    if game.active_colour == Colour::White {
-                        captured_piece_square = move_to_make.to_square - 8;
-                    } else {
-                        captured_piece_square = move_to_make.to_square + 8;
-                    }
-                    let captured_piece_bit = onebit_index_to_bit(captured_piece_square);
-                    if let Some(captured_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == captured_piece_bit) {
-                        game.pieces[captured_piece_index].taken = true;
-                        game.squares[captured_piece_square] = Square::Empty;
-                    }
-                }
-            }
-            _ => {}
-        }
-
-        // Standard capture
-        if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
-            game.pieces[target_index].taken = true;
-            if game.pieces[target_index].piece_type == PieceType::Rook {
-                // Remove this rook's side castling rights
-                let captured_piece_square = bit_to_onebit_index(game.pieces[target_index].bit);
-                match captured_piece_square {
-                    0 => {
-                        game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
-                    }
-                    7 => {
-                        game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
-                    }
-                    56 => {
-                        game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE);
-                    }
-                    63 => {
-                        game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        let piece_index = get_piece_index(&game.squares[move_to_make.from_square]);
-        game.squares[move_to_make.to_square] = Square::Occupied(piece_index.unwrap());
-        game.squares[move_to_make.from_square] = Square::Empty;
-        game.pieces[start_piece_index].bit = end_bit;
-
-        if game.pieces[start_piece_index].piece_type == PieceType::Pawn && (move_to_make.to_square as isize - move_to_make.from_square as isize).abs() == 16 {
-            let en_passant_square = (move_to_make.from_square + move_to_make.to_square) / 2;
-            game.en_passant = Some(onebit_index_to_bit(en_passant_square));
-        } else {
-            game.en_passant = None;
-        }
-
-        if game.active_colour == Colour::Black {
-            game.fullmove_number += 1;
-        }
-
-        game.active_colour = match game.active_colour {
-            Colour::White => Colour::Black,
-            Colour::Black => Colour::White,
-        };
     }
+
+    let piece_index = get_piece_index(&game.squares[move_to_make.from_square]);
+    game.squares[move_to_make.to_square] = Square::Occupied(piece_index.unwrap());
+    game.squares[move_to_make.from_square] = Square::Empty;
+    game.pieces[start_piece_index].bit = end_bit;
+
+    if game.pieces[start_piece_index].piece_type == PieceType::Pawn && (move_to_make.to_square as isize - move_to_make.from_square as isize).abs() == 16 {
+        let en_passant_square = (move_to_make.from_square + move_to_make.to_square) / 2;
+        game.en_passant = Some(onebit_index_to_bit(en_passant_square));
+    } else {
+        game.en_passant = None;
+    }
+
+    let inactive_colour = match game.active_colour {
+        Colour::White => Colour::Black,
+        Colour::Black => Colour::White,
+    }; 
+
+    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != game.active_colour) {
+        let king_square = bit_to_onebit_index(king.bit);
+
+        if inactive_colour_in_check(game, king_square) {
+            game.colour_in_check = Some(inactive_colour);
+        } else {
+            game.colour_in_check = None
+        }
+    }
+
+    if game.active_colour == Colour::Black {
+        game.fullmove_number += 1;
+    }
+
+    game.active_colour = inactive_colour;
 }
 
 pub fn print_board(game: &Game) {

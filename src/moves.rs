@@ -1,5 +1,5 @@
 use std::cmp::min;
-use crate::game::{make_move, CastlingRights, Game, PieceType, Square};
+use crate::game::{test_move, CastlingRights, Game, PieceType, Square};
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 use crate::Colour;
 
@@ -16,7 +16,7 @@ fn squares_to_edges(bit: u64) -> [usize; 4] {
     [8 - row_num, 8 - column_num, row_num - 1, column_num - 1]
 }
 
-pub fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
+pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move> {
     let mut possible_moves: Vec<Move> = Vec::new();
     for piece in &game.pieces {
         if piece.colour == game.active_colour && piece.taken == false {
@@ -51,8 +51,6 @@ pub fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
                     }
                     possible_moves = add_bishop_moves(from_square, possible_moves, king_squares_to_edges, game);
                     possible_moves = add_rook_moves(from_square, possible_moves, king_squares_to_edges, game);
-
-                    possible_moves = add_castle_moves(from_square, possible_moves, game);
                 }
             }
         }
@@ -60,6 +58,25 @@ pub fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
 
     possible_moves
 }
+
+fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
+    let mut possible_moves = generate_pseudolegal_moves_without_castling(game);
+
+    for piece in &game.pieces {
+        if piece.colour == game.active_colour && piece.piece_type == PieceType::King {
+            let from_square = bit_to_onebit_index(piece.bit);
+            match piece.piece_type {
+                PieceType::King => {
+                    possible_moves = add_castle_moves(from_square, possible_moves, game);
+                }
+                _ => ()
+            }
+        }
+    }
+
+    possible_moves
+}
+
 pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     let possible_moves = generate_pseudolegal_moves(game);
 
@@ -70,7 +87,7 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
 
         let mut new_game = game.clone();
 
-        make_move(&mut new_game, possible_move);
+        test_move(&mut new_game, possible_move);
 
         if let Some(king) = new_game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != new_game.active_colour) {
             let king_square = bit_to_onebit_index(king.bit);
@@ -84,13 +101,14 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     new_possible_moves
 }
 
-fn inactive_colour_in_check(game: &mut Game, king_square: usize) -> bool {
+pub fn inactive_colour_in_check(game: &mut Game, king_square: usize) -> bool {
     let next_possible_moves= generate_pseudolegal_moves(game);
     if next_possible_moves.iter().any(|m| m.to_square == king_square) {
         return true;
     }
     false
 }
+
 fn offset_matches_row_offset(from_square: usize, offset: isize, row_offset: isize) -> bool {
     let target_square = from_square as isize + offset;
     if target_square < 0 {
@@ -104,10 +122,21 @@ fn offset_matches_row_offset(from_square: usize, offset: isize, row_offset: isiz
     return target_row - from_row as isize == row_offset;
 }
 
+fn square_under_threat(square_index: usize, opponent_moves: &Vec<Move>) -> bool {
+    return opponent_moves.iter().any(|m| m.to_square == square_index)
+}
+
 fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game) -> Vec<Move> {
+    let mut test_game = game.clone();
+    match game.active_colour {
+        Colour::Black => test_game.active_colour = Colour::White,
+        Colour::White => test_game.active_colour = Colour::Black,
+    }
+
+    let opponent_moves = generate_pseudolegal_moves_without_castling(&mut test_game);
     if game.active_colour == Colour::White {
         if game.castling_rights.contains(CastlingRights::WHITEKINGSIDE) {
-            if (5..7).all(|i| game.squares[i] == Square::Empty) {
+            if (5..7).all(|i| game.squares[i] == Square::Empty) && (4..7).all(|i| !square_under_threat(i, &opponent_moves)) {
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square + 2,
@@ -115,7 +144,7 @@ fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Ga
             }
         }
         if game.castling_rights.contains(CastlingRights::WHITEQUEENSIDE) {
-            if (1..4).all(|i| game.squares[i] == Square::Empty) {
+            if (1..4).all(|i| game.squares[i] == Square::Empty) && (2..5).all(|i| !square_under_threat(i, &opponent_moves)) {
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square - 2,
@@ -124,14 +153,14 @@ fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Ga
         }
     } else {
         if game.castling_rights.contains(CastlingRights::BLACKKINGSIDE) {
-            if (61..63).all(|i| game.squares[i] == Square::Empty) {
+            if (61..63).all(|i| game.squares[i] == Square::Empty) && (60..63).all(|i| !square_under_threat(i, &opponent_moves)) {
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square + 2,
                 });
             }        }
         if game.castling_rights.contains(CastlingRights::BLACKQUEENSIDE) {
-            if (57..60).all(|i| game.squares[i] == Square::Empty) {
+            if (57..60).all(|i| game.squares[i] == Square::Empty) && (58..61).all(|i| !square_under_threat(i, &opponent_moves)) {
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square - 2,
