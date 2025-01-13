@@ -212,3 +212,31 @@ pub fn print_board(game: &Game) {
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     println!("{}", game.to_string());
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_on_space_works() {
+        let test_string = "A B C D";
+        let (should_be_a, rest) = split_on(test_string, ' ');
+        assert_eq!(should_be_a, "A");
+        let (should_be_b, rest) = split_on(test_string, ' ');
+    }
+
+    #[test]
+    fn split_on_ascii_works() {
+        for i in 0..128 {
+            let ch = char::from(i);
+            if ch == 'A' {
+                continue;
+            }
+            let test_string = format!("AA{}BB{}CC{}DD", ch, ch, ch);
+            let (should_be_a, rest) = split_on(&test_string, ch);
+            assert_eq!(should_be_a, "AA", "{}, {}, {}", test_string, ch, i);
+            assert_eq!(rest, &format!("BB{}CC{}DD", ch, ch));
+        }
+    }
+}
