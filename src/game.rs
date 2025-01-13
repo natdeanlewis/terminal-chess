@@ -48,6 +48,7 @@ pub struct Game {
     pub(crate) possible_moves: Vec<Move>,
     pub(crate) colour_in_check: Option<Colour>,
     last_move: Option<Move>,
+    pub players: i8
 }
 
 bitflags! {
@@ -151,7 +152,8 @@ impl Game {
             fullmove_number: 1,
             possible_moves: vec![],
             colour_in_check: None,
-            last_move: None
+            last_move: None,
+            players: 1,
         };
 
         let (position, rest) = split_on(fen, ' ');
@@ -232,21 +234,27 @@ pub fn game_loop(mut game: Game) {
                 break
             }
         } 
-        if game.active_colour == Colour::Black {
-            if game.possible_moves.len() == 0 {
-                if game.colour_in_check == Some(game.active_colour) {
-                    println!{"Checkmate! White wins."};
-                } else {
-                    println!{"Stalemate!"};
-                }
-                break
-            }
+
+        let inactive_colour = match game.active_colour {
+            Colour::White => Colour::Black,
+            Colour::Black => Colour::White,
+        };
+    
+        if game.possible_moves.len() == 0 {
             if game.colour_in_check == Some(game.active_colour) {
-                println!("Check!");
+                println!{"Checkmate! {:?} wins.", inactive_colour};
+            } else {
+                println!{"Stalemate!"};
             }
-            
-            println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
-            
+            break
+        }
+        if game.colour_in_check == Some(game.active_colour) {
+            println!("Check!");
+        }
+        
+        println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
+
+        if game.players == 1 && game.active_colour == Colour::Black {
             println!("Thinking...");
             let max_depth = 2;
             if let Some(best_move) = iterative_deepening_minimax(&mut game, max_depth) {
@@ -256,22 +264,6 @@ pub fn game_loop(mut game: Game) {
                 print_board(&game);
             }
         } else {
-            if game.possible_moves.len() == 0 {
-                if game.colour_in_check == Some(game.active_colour) {
-                    println!{"Checkmate! Black wins."};
-                } else {
-                    println!{"Stalemate!"};
-                }
-                break
-            }
-            if game.colour_in_check == Some(game.active_colour) {
-                println!("Check!");
-            }
-            
-            println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
-            
-    
-
             print!("Enter move: ");
             io::stdout().flush().unwrap();
             let mut move_input = String::new();

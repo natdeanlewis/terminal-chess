@@ -30,6 +30,21 @@ pub static _PERFT_4_FEN_STR: &str= "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2P
 pub static _PERFT_5_FEN_STR: &str= "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 pub static _PERFT_6_FEN_STR: &str= "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
 
+pub fn get_players_loop() -> i8 {
+    loop {
+        print!("How many players (1 or 2): ");
+        io::stdout().flush().unwrap();
+        let mut players_input = String::new();
+        io::stdin().read_line(&mut players_input).unwrap();
+        players_input = players_input.trim().to_string();
+        if players_input == "1" {
+            return 1
+        } else if players_input == "2" {
+            return 2
+        }
+    }
+}
+
 #[allow(dead_code)]
 pub fn bit_to_coords(bit: u64) -> Result<String, String> {
     if bit == 0 {
