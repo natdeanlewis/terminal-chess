@@ -74,13 +74,13 @@ static _KING_ENDGAME: [i32; 64] =
         -50,-30,-30,-30,-30,-30,-30,-50];
 
 
-fn evaluate_game(test_game: &mut Game, evaluating_colour: Colour) -> f64 {
+fn evaluate_game(test_game: &mut Game, maximizing_colour: Colour) -> f64 {
     let mut evaluation = 0;
     let mut piece_evaluation_total = 0;
     for piece in test_game.pieces.clone() {
 
         if piece.taken == false {
-            if piece.colour == evaluating_colour {
+            if piece.colour == maximizing_colour {
                 piece_evaluation_total += piece_evaluation(&piece);
             } else {
                 piece_evaluation_total -= piece_evaluation(&piece);
@@ -90,7 +90,7 @@ fn evaluate_game(test_game: &mut Game, evaluating_colour: Colour) -> f64 {
 
     evaluation += piece_evaluation_total;
 
-    if test_game.colour_in_check == Some(evaluating_colour) {
+    if test_game.colour_in_check == Some(maximizing_colour) {
         if test_game.possible_moves.len() == 0 {
             evaluation -= 10000;
         } else {
@@ -98,12 +98,12 @@ fn evaluate_game(test_game: &mut Game, evaluating_colour: Colour) -> f64 {
         }
     }
 
-    let opponent_colour = match evaluating_colour {
+    let minimizing_colour = match maximizing_colour {
         Colour::White => Colour::Black,
         Colour::Black => Colour::White,
     };
 
-    if test_game.colour_in_check == Some(opponent_colour) {
+    if test_game.colour_in_check == Some(minimizing_colour) {
         if test_game.possible_moves.len() == 0 {
             evaluation += 10000;
         } else {
@@ -134,14 +134,7 @@ fn piece_evaluation(piece: &Piece) -> i32 {
 fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, maximizing_colour: Colour, mut alpha: f64, mut beta: f64) -> (f64, Option<Move>) {
     // Base case: If depth is 0 or game over, return the evaluation of the game
     if depth == 0 || game.possible_moves.len() == 0 {
-        let mut evaluating_colour = maximizing_colour;
-        if !maximizing_player {
-            evaluating_colour = match maximizing_colour {
-                Colour::White => Colour::Black,
-                Colour::Black => Colour::White,
-            };
-        }
-        return (evaluate_game(game, evaluating_colour), None);
+        return (evaluate_game(game, maximizing_colour), None);
     }
 
     let mut best_move: Option<Move> = None;
