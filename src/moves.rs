@@ -129,11 +129,10 @@ pub fn make_move(game: &mut Game, move_to_make: Move) {
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
     if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
-        // Promote first to avoid pawns being found on the last row when generating next moves
+        make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
         if let Some(promotion_piece)  = move_to_make.promotion {
             game.pieces[start_piece_index].piece_type = promotion_piece;
         };
-        make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
     }
 }
 

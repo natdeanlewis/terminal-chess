@@ -1,3 +1,4 @@
+use std::thread::current;
 use crate::game::{Colour, Game, PieceType};
 use crate::game::Colour::White;
 use crate::moves::Move;
@@ -5,112 +6,118 @@ use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 
 pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game) -> Vec<Move> {
     let increment: isize;
-    let start_row: usize;
+    let start_row_index: usize;
+    let end_row_index: usize;
     let mut pawn_moves: Vec<Move> = Vec::new();
     if game.active_colour == Colour::White {
         increment = 8;
-        start_row = 2;
+        start_row_index = 1;
+        end_row_index = 7;
     } else {
         increment = -8;
-        start_row = 7;
+        start_row_index = 6;
+        end_row_index = 0;
     }
 
-    // One square forwards
-    let mut target_square = from_square as isize + increment;
-    let mut target_bit = onebit_index_to_bit(target_square as usize);
-    if game.pieces.iter().all(|p| p.taken || p.bit != target_bit) {
-        pawn_moves.push(Move {
-            from_square: from_square,
-            to_square: target_square as usize,
-            promotion: None,
-        });
+    let current_index = from_square / 8;
+    if current_index != end_row_index {
+        // One square forwards
+        let mut target_square = from_square as isize + increment;
+        let mut target_bit = onebit_index_to_bit(target_square as usize);
+        if game.pieces.iter().all(|p| p.taken || p.bit != target_bit) {
+            pawn_moves.push(Move {
+                from_square: from_square,
+                to_square: target_square as usize,
+                promotion: None,
+            });
 
-        // Two squares forward
-        if from_square / 8 + 1 == start_row {
-            target_square += increment;
-            target_bit = onebit_index_to_bit(target_square as usize);
-            if game.pieces.iter().all(|p| p.taken || p.bit != target_bit) {
+            // Two squares forward
+            if current_index == start_row_index {
+                target_square += increment;
+                target_bit = onebit_index_to_bit(target_square as usize);
+                if game.pieces.iter().all(|p| p.taken || p.bit != target_bit) {
+                    pawn_moves.push(Move {
+                        from_square: from_square,
+                        to_square: target_square as usize,
+                        promotion: None,
+                    })
+                }
+            }
+        }
+
+        // Left diagonal capture
+        if from_square % 8 > 0 {
+            let left_diagonal_target_square = from_square as isize + increment - 1;
+            let left_diagonal_target_bit = onebit_index_to_bit(left_diagonal_target_square as usize);
+
+            if let Some(_piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == left_diagonal_target_bit && p.colour != game.active_colour) {
                 pawn_moves.push(Move {
                     from_square: from_square,
-                    to_square: target_square as usize,
+                    to_square: left_diagonal_target_square as usize,
                     promotion: None,
-                })
+                });
             }
         }
-    }
 
-    // Left diagonal capture
-    if from_square % 8 > 0 {
-        let left_diagonal_target_square = from_square as isize + increment - 1;
-        let left_diagonal_target_bit = onebit_index_to_bit(left_diagonal_target_square as usize);
+        // Right diagonal capture
+        if from_square % 8 < 7 {
+            let right_diagonal_target_square = from_square as isize + increment + 1;
+            let right_diagonal_target_bit = onebit_index_to_bit(right_diagonal_target_square as usize);
 
-        if let Some(_piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == left_diagonal_target_bit && p.colour != game.active_colour) {
-            pawn_moves.push(Move {
-                from_square: from_square,
-                to_square: left_diagonal_target_square as usize,
-                promotion: None,
-            });
+            if let Some(_piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == right_diagonal_target_bit && p.colour != game.active_colour) {
+                pawn_moves.push(Move {
+                    from_square: from_square,
+                    to_square: right_diagonal_target_square as usize,
+                    promotion: None,
+                });
+            }
         }
-    }
 
-    // Right diagonal capture
-    if from_square % 8 < 7 {
-        let right_diagonal_target_square = from_square as isize + increment + 1;
-        let right_diagonal_target_bit = onebit_index_to_bit(right_diagonal_target_square as usize);
+        //en passant
+        match game.en_passant {
+            Some(en_passant) => {
+                let en_passant_onebit_index = bit_to_onebit_index(en_passant);
+                // Left diagonal
+                if from_square % 8 > 0 {
+                    let left_diagonal_target_square = from_square as isize + increment - 1;
 
-        if let Some(_piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == right_diagonal_target_bit && p.colour != game.active_colour) {
-            pawn_moves.push(Move {
-                from_square: from_square,
-                to_square: right_diagonal_target_square as usize,
-                promotion: None,
-            });
-        }
-    }
+                    if left_diagonal_target_square == en_passant_onebit_index as isize {
+                        pawn_moves.push(Move {
+                            from_square: from_square,
+                            to_square: en_passant_onebit_index,
+                            promotion: None,
+                        })
+                    }
+                }
 
-    //en passant
-    match game.en_passant {
-        Some(en_passant) => {
-            let en_passant_onebit_index = bit_to_onebit_index(en_passant);
-            // Left diagonal
-            if from_square % 8 > 0 {
-                let left_diagonal_target_square = from_square as isize + increment - 1;
+                // Right diagonal
+                if from_square % 8 < 7 {
+                    let left_diagonal_target_square = from_square as isize + increment + 1;
 
-                if left_diagonal_target_square == en_passant_onebit_index as isize {
-                    pawn_moves.push(Move {
-                        from_square: from_square,
-                        to_square: en_passant_onebit_index,
-                        promotion: None,
-                    })
+                    if left_diagonal_target_square == en_passant_onebit_index as isize {
+                        pawn_moves.push(Move {
+                            from_square: from_square,
+                            to_square: en_passant_onebit_index,
+                            promotion: None,
+                        })
+                    }
                 }
             }
+            _ => {}
+        }
 
-            // Right diagonal
-            if from_square % 8 < 7 {
-                let left_diagonal_target_square = from_square as isize + increment + 1;
-
-                if left_diagonal_target_square == en_passant_onebit_index as isize {
-                    pawn_moves.push(Move {
-                        from_square: from_square,
-                        to_square: en_passant_onebit_index,
-                        promotion: None,
+        for pawn_move in pawn_moves {
+            if (game.active_colour == White && pawn_move.to_square >= 56) || (game.active_colour == Colour::Black && pawn_move.to_square < 8) {
+                for promotion_piece in [PieceType::Queen, PieceType::Rook, PieceType::Bishop, PieceType::Knight].iter() {
+                    possible_moves.push(Move {
+                        from_square: pawn_move.from_square,
+                        to_square: pawn_move.to_square,
+                        promotion: Some(*promotion_piece),
                     })
                 }
+            } else {
+                possible_moves.push(pawn_move);
             }
-        }
-        _ => {}
-    }
-
-    for pawn_move in pawn_moves {
-        if (game.active_colour == White && pawn_move.to_square >= 56) || (game.active_colour == Colour::Black && pawn_move.to_square < 8) {
-            for promotion_piece in [PieceType::Queen, PieceType::Rook, PieceType::Bishop, PieceType::Knight].iter() {
-                possible_moves.push(Move {
-                    from_square: pawn_move.from_square,
-                    to_square: pawn_move.to_square,
-                    promotion: Some(*promotion_piece),
-                })
-            }
-        } else {
-            possible_moves.push(pawn_move);
         }
     }
 
