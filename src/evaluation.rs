@@ -76,38 +76,30 @@ static _KING_ENDGAME: [i32; 64] =
 
 fn evaluate_game(test_game: &mut Game, maximizing_colour: Colour) -> f64 {
     let mut evaluation = 0;
-    let mut piece_evaluation_total = 0;
     for piece in test_game.pieces.clone() {
 
         if piece.taken == false {
             if piece.colour == maximizing_colour {
-                piece_evaluation_total += piece_evaluation(&piece);
+                evaluation += piece_evaluation(&piece);
             } else {
-                piece_evaluation_total -= piece_evaluation(&piece);
+                evaluation -= piece_evaluation(&piece);
             }
         }
     }
 
-    evaluation += piece_evaluation_total;
-
-    if test_game.colour_in_check == Some(maximizing_colour) {
+    let mut check_evaluation;
+    if let Some(colour_in_check) = test_game.colour_in_check {
         if test_game.possible_moves.len() == 0 {
-            evaluation -= 10000;
+            // Checkmate
+            check_evaluation = 10000;
         } else {
-            evaluation -= 50;
+            // Check
+            check_evaluation = 50;
         }
-    }
-
-    let minimizing_colour = match maximizing_colour {
-        Colour::White => Colour::Black,
-        Colour::Black => Colour::White,
-    };
-
-    if test_game.colour_in_check == Some(minimizing_colour) {
-        if test_game.possible_moves.len() == 0 {
-            evaluation += 10000;
+        if colour_in_check == maximizing_colour {
+            evaluation -= check_evaluation
         } else {
-            evaluation += 50;
+            evaluation += check_evaluation
         }
     }
 
