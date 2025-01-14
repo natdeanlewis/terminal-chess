@@ -32,12 +32,14 @@ pub static _PERFT_6_FEN_STR: &str= "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1
 
 pub fn get_players_loop() -> i8 {
     loop {
-        print!("How many players (1 or 2): ");
+        print!("How many players (0, 1 or 2): ");
         io::stdout().flush().unwrap();
         let mut players_input = String::new();
         io::stdin().read_line(&mut players_input).unwrap();
         players_input = players_input.trim().to_string();
-        if players_input == "1" {
+        if players_input == "0" {
+            return 0
+        } else if players_input == "1" {
             return 1
         } else if players_input == "2" {
             return 2

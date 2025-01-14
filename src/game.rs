@@ -254,7 +254,7 @@ pub fn game_loop(mut game: Game) {
         
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
 
-        if game.players == 1 && game.active_colour == Colour::Black {
+        if game.players == 0 || (game.players == 1 && game.active_colour == Colour::Black) {
             println!("Thinking...");
             let max_depth = 2;
             if let Some(best_move) = iterative_deepening_minimax(&mut game, max_depth) {
