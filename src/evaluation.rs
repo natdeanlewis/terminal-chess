@@ -87,7 +87,7 @@ fn evaluate_game(test_game: &mut Game, maximizing_colour: Colour) -> f64 {
         }
     }
 
-    let mut check_evaluation;
+    let check_evaluation;
     if let Some(colour_in_check) = test_game.colour_in_check {
         if test_game.possible_moves.len() == 0 {
             // Checkmate

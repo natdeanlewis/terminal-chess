@@ -1,4 +1,3 @@
-use std::thread::current;
 use crate::game::{Colour, Game, PieceType};
 use crate::game::Colour::White;
 use crate::moves::Move;
