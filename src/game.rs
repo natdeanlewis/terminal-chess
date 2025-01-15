@@ -324,7 +324,7 @@ pub fn game_loop(mut game: Game) {
         // if both sides have only a king with knights or bishops
         if game.pieces.iter().filter(|piece| !piece.taken && [PieceType::Queen, PieceType::Rook, PieceType::Pawn].contains(&piece.piece_type)).count() == 0 {
             if game.pieces.iter().filter(|piece| piece.colour == Colour::White && !piece.taken).count() <= 2 && game.pieces.iter().filter(|piece| piece.colour == Colour::Black && !piece.taken).count() <= 2 {
-                println!{"Draw!"};
+                println!{"Draw."};
                 break
             }
         } 
@@ -336,14 +336,14 @@ pub fn game_loop(mut game: Game) {
     
         if game.possible_moves.len() == 0 {
             if game.colour_in_check == Some(game.active_colour) {
-                println!{"Checkmate! {:?} wins.", inactive_colour};
+                println!{"Checkmate. {:?} wins.", inactive_colour};
             } else {
-                println!{"Stalemate!"};
+                println!{"Stalemate."};
             }
             break
         }
         if game.colour_in_check == Some(game.active_colour) {
-            println!("Check!");
+            println!("Check.");
         }
         
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
@@ -353,19 +353,18 @@ pub fn game_loop(mut game: Game) {
             if let Some(best_move) = iterative_deepening_minimax(&mut game, max_depth) {
                 make_move(&mut game, best_move);
                 game.last_move = Some(best_move);
+                game.possible_moves = generate_moves(&mut game);
+                print_board(&game);
 
                 let fen_string = Game::write_FEN_without_move_counts(&game);
                 *game.position_counts.entry(fen_string.clone()).or_insert(0) += 1;
                 if let Some(position_count) = game.position_counts.get(&fen_string) {
                     if *position_count == 5 {
-                        println!{"Draw by fivefold repetition!"};
+                        println!{"Draw by fivefold repetition."};
                         break    
     
                     }
                 }
-                
-                game.possible_moves = generate_moves(&mut game);
-                print_board(&game);
             }
         } else {
             print!("Enter move: ");
@@ -379,19 +378,19 @@ pub fn game_loop(mut game: Game) {
                 if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
                     make_move(&mut game, input_move);
                     game.last_move = Some(input_move);
+                    game.possible_moves = generate_moves(&mut game);
+                    print_board(&game);
 
                     let fen_string = Game::write_FEN_without_move_counts(&game);
                     *game.position_counts.entry(fen_string.clone()).or_insert(0) += 1;
                     if let Some(position_count) = game.position_counts.get(&fen_string) {
                         if *position_count == 5 {
-                            println!{"Draw by fivefold repetition!"};
+                            println!{"Draw by fivefold repetition."};
                             break    
         
                         }
                     }
                 
-                    game.possible_moves = generate_moves(&mut game);
-                    print_board(&game);
                 } else {
                     print_board(&game);
                     println!("Invalid move");
