@@ -1,11 +1,10 @@
-build: ```cargo build```
-run: ```cargo run```
-test: ```cargo test```
-test with println!s :```cargo test -- --nocapture```
-
-
+build: `cargo build`
+run: `cargo run`
+test: `cargo test`
+test with println!s :`cargo test -- --nocapture`
 
 - TODOs:
+
   - castling under check if checking for own target moves not opponents? can't replicate
   - turn piece bonuses down or increase check bonus in endgame?
   - use bitboard per piece type?
@@ -40,7 +39,7 @@ test with println!s :```cargo test -- --nocapture```
   - mouse gui
   - full algebraic move notation?
   - allow non-queen promotion when testing moves
-
+  - update and use halfmove and fullmove counts - 50 move rule etc.
 
 - examples:
   - coords: e4
