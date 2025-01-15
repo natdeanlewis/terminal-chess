@@ -15,6 +15,23 @@ pub struct Move {
     pub promotion: Option<PieceType>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct MoveToUnmake {
+    pub(crate) from_square: usize,
+    pub(crate) to_square: usize,
+    pub promotion: Option<PieceType>,
+    pub captured_piece_index: Option<usize>,
+    pub captured_piece_square: Option<usize>,
+    pub previous_castling_rights: CastlingRights,
+    pub previous_en_passant: Option<u64>,
+    pub previous_colour_in_check: Option<Colour>,
+    pub previous_last_move: Option<Move>,
+    pub previous_castled_rook_piece_index: Option<usize>,
+    pub previous_castled_rook_piece_from_square: Option<usize>,
+    pub previous_castled_rook_piece_to_square: Option<usize>,
+}
+
+
 fn squares_to_edges(bit: u64) -> [usize; 4] {
     let onebit_index = bit_to_onebit_index(bit);
     let column_num = onebit_index % 8 + 1;
@@ -82,18 +99,17 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     let mut new_possible_moves = vec![];
 
     for possible_move in possible_moves {
+        let move_to_unmake = make_move(game, possible_move);
 
-        let mut new_game = game.clone();
-
-        make_move(&mut new_game, possible_move);
-
-        if let Some(king) = new_game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != new_game.active_colour) {
+        if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != game.active_colour) {
             let king_square = bit_to_onebit_index(king.bit);
 
-            if !inactive_colour_in_check(&mut new_game, king_square) {
+            if !inactive_colour_in_check(game, king_square) {
                 new_possible_moves.push(possible_move);
             }
         }
+
+        unmake_move(game, move_to_unmake);
     }
 
     new_possible_moves
@@ -124,19 +140,88 @@ pub fn square_under_threat(square_index: usize, opponent_moves: &Vec<Move>) -> b
     return opponent_moves.iter().any(|m| m.to_square == square_index)
 }
 
-pub fn make_move(game: &mut Game, move_to_make: Move) {
+pub fn make_move(game: &mut Game, move_to_make: Move) -> MoveToUnmake {
     let start_bit = onebit_index_to_bit(move_to_make.from_square);
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
     if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
-        make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
+        // Promote first so check will be calculated if promoted piece puts king in check
         if let Some(promotion_piece)  = move_to_make.promotion {
             game.pieces[start_piece_index].piece_type = promotion_piece;
         };
+
+        let move_to_unmake = make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
+
+        return move_to_unmake
+    }
+    panic!("No piece found at this move's start index")
+}
+
+pub fn unmake_move(game: &mut Game, move_to_unmake: MoveToUnmake) {
+    let start_bit = onebit_index_to_bit(move_to_unmake.from_square);
+    let end_bit = onebit_index_to_bit(move_to_unmake.to_square);
+
+    if let Some(piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit && p.colour != game.active_colour) {
+        if let Some(_promotion_piece) = move_to_unmake.promotion {
+            game.pieces[piece_index].piece_type = PieceType::Pawn;
+        };
+
+        game.pieces[piece_index].bit = start_bit;
+        game.squares[move_to_unmake.from_square] = Square::Occupied(piece_index);
+        game.squares[move_to_unmake.to_square] = Square::Empty;
+        if let Some(captured_piece_index) = move_to_unmake.captured_piece_index {
+            if let Some(captured_piece_square) = move_to_unmake.captured_piece_square {
+                game.pieces[captured_piece_index].taken = false;
+                game.squares[captured_piece_square] = Square::Occupied(captured_piece_index);
+            }
+        }
+
+        if let Some(previous_castled_rook_piece_index) = move_to_unmake.previous_castled_rook_piece_index {
+            if let Some(previous_castled_rook_piece_from_square) = move_to_unmake.previous_castled_rook_piece_from_square {
+                if let Some(previous_castled_rook_piece_to_square) = move_to_unmake.previous_castled_rook_piece_to_square {
+                    game.pieces[previous_castled_rook_piece_index].bit = onebit_index_to_bit(previous_castled_rook_piece_from_square);
+                    game.squares[previous_castled_rook_piece_from_square] = Square::Occupied(previous_castled_rook_piece_index);
+                    game.squares[previous_castled_rook_piece_to_square] = Square::Empty;
+
+                }
+            }
+        }
+
+        game.castling_rights = move_to_unmake.previous_castling_rights;
+        game.en_passant = move_to_unmake.previous_en_passant;
+
+        game.colour_in_check = move_to_unmake.previous_colour_in_check;
+        game.last_move = move_to_unmake.previous_last_move;
+
+        // If Black has just moved
+        if game.active_colour == Colour::White {
+            game.fullmove_number -= 1;
+        }
+
+        let inactive_colour = match game.active_colour {
+            Colour::White => Colour::Black,
+            Colour::Black => Colour::White,
+        };
+        game.active_colour = inactive_colour;
     }
 }
 
-fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece_index: usize, end_bit: u64) {
+fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece_index: usize, end_bit: u64) -> MoveToUnmake {
+    let mut move_to_unmake = MoveToUnmake {
+        from_square: move_to_make.from_square,
+        to_square: move_to_make.to_square,
+        promotion: move_to_make.promotion,
+        captured_piece_index: None,
+        captured_piece_square: None,
+        previous_castling_rights: game.castling_rights,
+        previous_en_passant: game.en_passant,
+        previous_colour_in_check: game.colour_in_check,
+        previous_last_move: game.last_move,
+        previous_castled_rook_piece_index: None,
+        previous_castled_rook_piece_from_square: None,
+        previous_castled_rook_piece_to_square: None,
+    };
+
     // Castling
     if game.pieces[start_piece_index].piece_type == PieceType::King {
         // Remove queen and king side castling rights
@@ -169,6 +254,10 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
                 if let Some(rook_piece_index) = get_piece_index(&game.squares[move_to_make.from_square + 3]) {
                     game.squares[move_to_make.from_square + 1] = Square::Occupied(rook_piece_index);
                     game.squares[move_to_make.from_square + 3] = Square::Empty;
+                    move_to_unmake.previous_castled_rook_piece_index = Some(rook_piece_index);
+                    move_to_unmake.previous_castled_rook_piece_from_square = Some(move_to_make.from_square + 3);
+                    move_to_unmake.previous_castled_rook_piece_to_square = Some(move_to_make.from_square + 1);
+
                 }
             } else {
                 // Queen side rook
@@ -178,6 +267,10 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
                 if let Some(rook_piece_index) = get_piece_index(&game.squares[move_to_make.from_square - 4]) {
                     game.squares[move_to_make.from_square - 1] = Square::Occupied(rook_piece_index);
                     game.squares[move_to_make.from_square - 4] = Square::Empty;
+                    move_to_unmake.previous_castled_rook_piece_index = Some(rook_piece_index);
+                    move_to_unmake.previous_castled_rook_piece_from_square = Some(move_to_make.from_square - 4);
+                    move_to_unmake.previous_castled_rook_piece_to_square = Some(move_to_make.from_square - 1);
+
                 }
             }
         }
@@ -216,6 +309,8 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
                 if let Some(captured_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == captured_piece_bit) {
                     game.pieces[captured_piece_index].taken = true;
                     game.squares[captured_piece_square] = Square::Empty;
+                    move_to_unmake.captured_piece_index = Some(captured_piece_index);
+                    move_to_unmake.captured_piece_square = Some(captured_piece_square);
                 }
             }
         }
@@ -225,9 +320,11 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     // Standard capture
     if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
         game.pieces[target_index].taken = true;
+        let captured_piece_square = bit_to_onebit_index(game.pieces[target_index].bit);
+        move_to_unmake.captured_piece_index = Some(target_index);
+        move_to_unmake.captured_piece_square = Some(captured_piece_square);
         if game.pieces[target_index].piece_type == PieceType::Rook {
             // Remove this rook's side castling rights
-            let captured_piece_square = bit_to_onebit_index(game.pieces[target_index].bit);
             match captured_piece_square {
                 0 => {
                     game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
@@ -278,6 +375,8 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     }
 
     game.active_colour = inactive_colour;
+
+    move_to_unmake
 }
 
 #[test]
@@ -343,14 +442,14 @@ fn perft_func(depth: u32, game: &mut Game) -> u32 {
 
     let n_moves = generate_moves(game);
     for n_move in n_moves.iter() {
-        let mut new_game = game.clone();
-        make_move(&mut new_game, *n_move);
-        let nodes: u32 = perft_func(depth - 1, &mut new_game);
+        let move_to_unmake = make_move(game, *n_move);
+        let nodes: u32 = perft_func(depth - 1, game);
         // let depth_to_print - 3;
         // if depth == depth_to_print {
         //     println!("{}: {}", move_to_unambiguous_algebraic_notation(game, *n_move).expect("!"), nodes);
         // }
         total += nodes;
+        unmake_move(game, move_to_unmake);
     }
     total
 }

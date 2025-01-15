@@ -1,5 +1,5 @@
 use crate::game::{Colour, Game, Piece, PieceType};
-use crate::moves::{generate_moves, make_move, Move};
+use crate::moves::{generate_moves, make_move, unmake_move, Move};
 use crate::utils::bit_to_onebit_index;
 
 static PAWN_PST: [i32; 64] =
@@ -76,8 +76,7 @@ static _KING_ENDGAME: [i32; 64] =
 
 fn evaluate_game(test_game: &mut Game, maximizing_colour: Colour) -> f64 {
     let mut evaluation = 0;
-    for piece in test_game.pieces.clone() {
-
+    for piece in &test_game.pieces {
         if piece.taken == false {
             if piece.colour == maximizing_colour {
                 evaluation += piece_evaluation(&piece);
@@ -134,16 +133,17 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, maximizing_colo
 
     if maximizing_player {
         best_evaluation = f64::NEG_INFINITY;
-        for possible_move in &game.possible_moves {
-            let mut new_game = game.clone();
-            make_move(&mut new_game, *possible_move);
-            new_game.possible_moves = generate_moves(&mut new_game);
-
-            let (evaluation, _) = minimax(&mut new_game, depth - 1, false, maximizing_colour, alpha, beta);
+        for i in 0..game.possible_moves.len() {
+            let possible_move = game.possible_moves[i];
+            let move_to_unmake = make_move(game, possible_move);
+            game.possible_moves = generate_moves(game);
+            let (evaluation, _) = minimax(game, depth - 1, false, maximizing_colour, alpha, beta);
+            unmake_move(game, move_to_unmake);
+            game.possible_moves = generate_moves(game);
 
             if evaluation > best_evaluation {
                 best_evaluation = evaluation;
-                best_move = Some(*possible_move);
+                best_move = Some(possible_move);
             }
 
             if best_evaluation >= beta {
@@ -154,16 +154,17 @@ fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, maximizing_colo
 
     } else {
         best_evaluation = f64::INFINITY;
-        for possible_move in &game.possible_moves {
-            let mut new_game = game.clone();
-            make_move(&mut new_game, *possible_move);
-            new_game.possible_moves = generate_moves(&mut new_game);
-
-            let (evaluation, _) = minimax(&mut new_game, depth - 1, true, maximizing_colour, alpha, beta);
+        for i in 0..game.possible_moves.len() {
+            let possible_move = game.possible_moves[i];
+            let move_to_unmake = make_move(game, possible_move);
+            game.possible_moves = generate_moves(game);
+            let (evaluation, _) = minimax(game, depth - 1, true, maximizing_colour, alpha, beta);
+            unmake_move(game, move_to_unmake);
+            game.possible_moves = generate_moves(game);
 
             if evaluation < best_evaluation {
                 best_evaluation = evaluation;
-                best_move = Some(*possible_move);
+                best_move = Some(possible_move);
             }
 
             if best_evaluation <= alpha {

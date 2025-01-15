@@ -49,13 +49,13 @@ pub struct Game {
     pub fullmove_number: usize,
     pub(crate) possible_moves: Vec<Move>,
     pub(crate) colour_in_check: Option<Colour>,
-    last_move: Option<Move>,
+    pub(crate) last_move: Option<Move>,
     position_counts: HashMap<String, i32>,
     pub players: i8
 }
 
 bitflags! {
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Copy)]
     pub struct CastlingRights: u8 {
         const NONE = 0;
         const WHITEKINGSIDE = 1 << 0;
@@ -327,13 +327,13 @@ pub fn game_loop(mut game: Game) {
                 println!{"Draw."};
                 break
             }
-        } 
+        }
 
         let inactive_colour = match game.active_colour {
             Colour::White => Colour::Black,
             Colour::Black => Colour::White,
         };
-    
+
         if game.possible_moves.len() == 0 {
             if game.colour_in_check == Some(game.active_colour) {
                 println!{"Checkmate. {:?} wins.", inactive_colour};
@@ -345,7 +345,7 @@ pub fn game_loop(mut game: Game) {
         if game.colour_in_check == Some(game.active_colour) {
             println!("Check.");
         }
-        
+
         println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
 
         if game.players == 0 || (game.players == 1 && game.active_colour == Colour::Black) {
@@ -361,8 +361,8 @@ pub fn game_loop(mut game: Game) {
                 if let Some(position_count) = game.position_counts.get(&fen_string) {
                     if *position_count == 5 {
                         println!{"Draw by fivefold repetition."};
-                        break    
-    
+                        break
+
                     }
                 }
             }
@@ -373,7 +373,7 @@ pub fn game_loop(mut game: Game) {
             io::stdin().read_line(&mut move_input).unwrap();
             move_input = move_input.trim().to_string();
 
-            if let Some(input_move) = parse_algebraic_move(&move_input, &game) {   
+            if let Some(input_move) = parse_algebraic_move(&move_input, &game) {
                 let start_bit = onebit_index_to_bit(input_move.from_square);
                 if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
                     make_move(&mut game, input_move);
@@ -386,11 +386,9 @@ pub fn game_loop(mut game: Game) {
                     if let Some(position_count) = game.position_counts.get(&fen_string) {
                         if *position_count == 5 {
                             println!{"Draw by fivefold repetition."};
-                            break    
-        
+                            break
                         }
                     }
-                
                 } else {
                     print_board(&game);
                     println!("Invalid move");
