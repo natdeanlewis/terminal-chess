@@ -1,6 +1,7 @@
 use bitflags::bitflags;
-use rand::seq::index;
+use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::hash::Hash;
 use std::io;
 use std::io::Write;
 use crate::evaluation::iterative_deepening_minimax;
@@ -49,7 +50,7 @@ pub struct Game {
     pub(crate) possible_moves: Vec<Move>,
     pub(crate) colour_in_check: Option<Colour>,
     last_move: Option<Move>,
-    positions: Vec<String>,
+    position_counts: HashMap<String, i32>,
     pub players: i8
 }
 
@@ -99,7 +100,7 @@ impl Game {
 
     pub fn to_string(&self) -> String {
         let mut board = "".to_owned();
-        let mut temp"".to_owned();
+        let mut temp = "".to_owned();
         board.insert_str(0, "   a  b  c  d  e  f  g  h");
         for (i, square) in self.squares.iter().enumerate() {
             if i % 8 == 0 {
@@ -156,7 +157,7 @@ impl Game {
             colour_in_check: None,
             last_move: None,
             players: 1,
-            positions: vec![],
+            position_counts: HashMap::new(),
         };
 
         let (position, rest) = split_on(fen, ' ');
@@ -228,8 +229,7 @@ impl Game {
     fn write_FEN_without_move_counts(game: &Game) -> String {
         let mut fen_string = "".to_owned();
         let mut consecutive_empty_squares: u8 = 0;
-        let mut deque_strings: VecDeque<String> = VecDeque::new();
-        let mut temp = "".to_owned();
+        let mut row_temp = "".to_owned();
         for (i, square) in game.squares.iter().enumerate() {
             match square {
                 Square::Empty => {
@@ -237,7 +237,7 @@ impl Game {
                 },
                 Square::Occupied(piece_index) => {
                     if consecutive_empty_squares > 0 {
-                        temp.push_str(&consecutive_empty_squares.to_string());
+                        row_temp.push_str(&consecutive_empty_squares.to_string());
                     }
                     let piece = &game.pieces[*piece_index];
                     let lowercase_piece_char = match piece.piece_type {
@@ -249,28 +249,31 @@ impl Game {
                         PieceType::King => 'k',
                     };
                     if piece.colour == Colour::White {
-                        temp.push(lowercase_piece_char.to_ascii_uppercase());
+                        row_temp.push(lowercase_piece_char.to_ascii_uppercase());
                     } else {
-                        temp.push(lowercase_piece_char);
+                        row_temp.push(lowercase_piece_char);
                     }
                     consecutive_empty_squares = 0
                 }
             }
             if (i + 1) % 8 == 0 {
                 if consecutive_empty_squares > 0 {
-                    temp.push_str(&consecutive_empty_squares.to_string());
+                    row_temp.push_str(&consecutive_empty_squares.to_string());
                     consecutive_empty_squares = 0
                 }
-            temp.push('/');
-            deque_strings.push_front(temp);
-            temp.clear();
+                // Second or later row
+                if i >= 15 {
+                    row_temp.push('/');
+                }
+
+                fen_string = row_temp.clone() + &fen_string;
+                row_temp.clear();
             }
         }
 
         let colour_to_move = match game.active_colour {
             Colour::White => 'w',
             Colour::Black => 'b',
-            _ => panic!("Unknown colour designator: '{:?}'", game.active_colour),
         };
 
         fen_string.push(' ');
@@ -310,6 +313,8 @@ impl Game {
 }
 
 pub fn game_loop(mut game: Game) {
+    let max_depth = 2;
+
     game.possible_moves = generate_moves(&mut game);
     print_board(&game);
 
@@ -343,12 +348,20 @@ pub fn game_loop(mut game: Game) {
 
         if game.players == 0 || (game.players == 1 && game.active_colour == Colour::Black) {
             println!("Thinking...");
-            let max_depth = 2;
             if let Some(best_move) = iterative_deepening_minimax(&mut game, max_depth) {
                 make_move(&mut game, best_move);
                 game.last_move = Some(best_move);
-                game.positions.push(Game::write_FEN_without_move_counts(&game));
-                println!("{:?}", game.positions);
+
+                let fen_string = Game::write_FEN_without_move_counts(&game);
+                *game.position_counts.entry(fen_string.clone()).or_insert(0) += 1;
+                if let Some(position_count) = game.position_counts.get(&fen_string) {
+                    if *position_count == 5 {
+                        println!{"Draw by fivefold repetition!"};
+                        break    
+    
+                    }
+                }
+                
                 game.possible_moves = generate_moves(&mut game);
                 print_board(&game);
             }
@@ -364,8 +377,17 @@ pub fn game_loop(mut game: Game) {
                 if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
                     make_move(&mut game, input_move);
                     game.last_move = Some(input_move);
-                    game.positions.push(Game::write_FEN_without_move_counts(&game));
-                    println!("{:?}", game.positions);    
+
+                    let fen_string = Game::write_FEN_without_move_counts(&game);
+                    *game.position_counts.entry(fen_string.clone()).or_insert(0) += 1;
+                    if let Some(position_count) = game.position_counts.get(&fen_string) {
+                        if *position_count == 5 {
+                            println!{"Draw by fivefold repetition!"};
+                            break    
+        
+                        }
+                    }
+                
                     game.possible_moves = generate_moves(&mut game);
                     print_board(&game);
                 } else {
