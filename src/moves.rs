@@ -5,7 +5,7 @@ use crate::Colour;
 use crate::moves_king::{add_castle_moves, add_king_moves};
 use crate::moves_knight::generate_knight_moves;
 use crate::moves_pawn::add_pawn_moves;
-use crate::moves_queen::add_queen_moves;
+use crate::moves_queen::generate_queen_moves;
 use crate::moves_rook::generate_rook_moves;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -58,7 +58,7 @@ pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move>
                     possible_moves.extend(generate_rook_moves(from_square, game));
                 },
                 PieceType::Queen =>  {
-                    possible_moves = add_queen_moves(from_square, possible_moves, game);
+                    possible_moves.extend(generate_queen_moves(from_square, game));
                 },
                 PieceType::King => {
                     let squares_to_edges  = squares_to_edges(piece.bit);
