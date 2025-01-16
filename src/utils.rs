@@ -271,6 +271,17 @@ pub fn print_board(game: &Game) {
     println!("{}", game.to_string());
 }
 
+pub fn print_bitboard(bitboard: u64) {
+    for rank in (0..8).rev() {
+        for file in 0..8 {
+            let square = rank * 8 + file;
+            let bit = (bitboard >> square) & 1;
+            print!("{} ", bit);
+        }
+        println!();
+    }
+    println!()
+}
 
 #[cfg(test)]
 mod tests {

@@ -1,34 +1,65 @@
 use crate::game::Game;
-use crate::moves::{offset_matches_row_offset, Move};
-use crate::utils::onebit_index_to_bit;
+use crate::moves::{Move};
+use lazy_static::lazy_static;
 
-pub fn add_knight_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game) -> Vec<Move> {
-    // Knight moves clockwise from North:
-    possible_moves = single_direction_knight_move(from_square, 17, 2, possible_moves, game);
-    possible_moves = single_direction_knight_move(from_square, 10, 1, possible_moves, game);
-    possible_moves = single_direction_knight_move(from_square, -6, -1, possible_moves, game);
-    possible_moves = single_direction_knight_move(from_square, -15, -2, possible_moves, game);
-    possible_moves = single_direction_knight_move(from_square, -17, -2, possible_moves, game);
-    possible_moves = single_direction_knight_move(from_square, -10, -1, possible_moves, game);
-    possible_moves = single_direction_knight_move(from_square, 6, 1, possible_moves, game);
-    possible_moves = single_direction_knight_move(from_square, 15, 2, possible_moves, game);
+lazy_static! {
+    static ref KNIGHT_MOVES: [u64; 64] = precompute_knight_move_bitboards();
+}
+pub fn add_knight_moves(from_square: usize, game: &Game) -> Vec<Move> {
+
+    let mut possible_moves = Vec::new();
+
+    let knight_moves = KNIGHT_MOVES[from_square];
+
+    let occupied_by_friends = game.get_piece_bitboard();
+    let valid_moves = knight_moves & !occupied_by_friends;
+
+    for target_square in bitboard_to_indices(valid_moves) {
+        possible_moves.push(Move {
+            from_square: from_square,
+            to_square: target_square,
+            promotion: None,
+        });
+    }
 
     possible_moves
 }
 
-fn single_direction_knight_move(from_square: usize, offset: isize, row_offset: isize, mut possible_moves: Vec<Move>, game: &Game) -> Vec<Move>{
-    if offset_matches_row_offset(from_square, offset, row_offset) {
-        let target_index = from_square as isize + offset;
-        let target_bit = onebit_index_to_bit(target_index as usize);
+fn precompute_knight_move_bitboards() -> [u64; 64] {
+    let mut knight_moves = [0u64; 64];
 
-        if game.pieces.iter().all(|p| p.taken || p.bit != target_bit || p.colour != game.active_colour) {
-            possible_moves.push(Move {
-                from_square: from_square,
-                to_square: target_index as usize,
-                promotion: None,
-            });
+    for square in 0..64 {
+        let rank = square / 8;
+        let file = square % 8;
+
+        let mut moves = 0u64;
+
+        for (dr, df) in &[
+            (2, 1), (2, -1), (-2, 1), (-2, -1),
+            (1, 2), (1, -2), (-1, 2), (-1, -2),
+        ] {
+            let new_rank = rank as isize + dr;
+            let new_file = file as isize + df;
+
+            if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
+                let target_square = (new_rank * 8 + new_file) as usize;
+                moves |= 1u64 << target_square;
+            }
         }
+
+        knight_moves[square] = moves;
     }
 
-    possible_moves
+    knight_moves
+}
+
+fn bitboard_to_indices(bitboard: u64) -> Vec<usize> {
+    let mut indices = Vec::new();
+    let mut bits = bitboard;
+    while bits != 0 {
+        let lsb = bits.trailing_zeros() as usize;
+        indices.push(lsb);
+        bits &= bits - 1;
+    }
+    indices
 }

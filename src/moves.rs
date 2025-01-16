@@ -49,7 +49,7 @@ pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move>
                     possible_moves = add_pawn_moves(from_square, possible_moves, game);
                 }
                 PieceType::Knight => {
-                    possible_moves = add_knight_moves(from_square, possible_moves, game);
+                    possible_moves.extend(add_knight_moves(from_square, game));
                 },
                 PieceType::Bishop => {
                     let squares_to_edges  = squares_to_edges(piece.bit);
