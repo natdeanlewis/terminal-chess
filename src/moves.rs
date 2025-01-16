@@ -1,4 +1,4 @@
-use crate::moves_bishop::add_bishop_moves;
+use crate::moves_bishop::{generate_bishop_moves};
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
 use crate::Colour;
@@ -52,15 +52,13 @@ pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move>
                     possible_moves.extend(generate_knight_moves(from_square, game));
                 },
                 PieceType::Bishop => {
-                    let squares_to_edges  = squares_to_edges(piece.bit);
-                    possible_moves = add_bishop_moves(from_square, possible_moves, squares_to_edges, game);
+                    possible_moves.extend(generate_bishop_moves(from_square, game));
                 },
                 PieceType::Rook => {
                     possible_moves.extend(generate_rook_moves(from_square, game));
                 },
                 PieceType::Queen =>  {
-                    let squares_to_edges  = squares_to_edges(piece.bit);
-                    possible_moves = add_queen_moves(from_square, possible_moves, squares_to_edges, game);
+                    possible_moves = add_queen_moves(from_square, possible_moves, game);
                 },
                 PieceType::King => {
                     let squares_to_edges  = squares_to_edges(piece.bit);
@@ -372,7 +370,7 @@ pub fn calculate_sliding_moves(attack_mask: u64, occupied: u64, direction: usize
     if blockers != 0 {
         match direction {
             0 | 1 => {
-                // North/East
+                // North/East (orthogonal), North-West/North-East (diagonal)t
                 let first_blocker = blockers.trailing_zeros() as usize;
                 let blocker_bit = 1u64 << first_blocker;
                 if blocker_bit & own_pieces == 0 {
@@ -384,7 +382,7 @@ pub fn calculate_sliding_moves(attack_mask: u64, occupied: u64, direction: usize
                 }
             },
             2 | 3 => {
-                // South/West
+                // South/West (orthogonal), South-East/South-West (diagonal)t
                 let first_blocker = 63 - blockers.leading_zeros() as usize;
                 let blocker_bit = 1u64 << first_blocker;
                 if blocker_bit & own_pieces == 0 {
