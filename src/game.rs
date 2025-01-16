@@ -311,10 +311,17 @@ impl Game {
         fen_string
     }
 
-    pub fn get_piece_bitboard(&self) -> u64 {
+    pub fn get_friendly_piece_bitboard(&self) -> u64 {
         self.pieces
             .iter()
             .filter(|piece| piece.colour == self.active_colour && piece.taken == false)
+            .fold(0u64, |bitboard, piece| bitboard | piece.bit)
+    }
+
+    pub fn get_enemy_piece_bitboard(&self) -> u64 {
+        self.pieces
+            .iter()
+            .filter(|piece| piece.colour != self.active_colour && piece.taken == false)
             .fold(0u64, |bitboard, piece| bitboard | piece.bit)
     }
 

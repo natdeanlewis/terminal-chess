@@ -3,7 +3,9 @@ use crate::game::Colour::White;
 use crate::moves::Move;
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 
-pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game) -> Vec<Move> {
+pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
+    let mut possible_moves = Vec::new();
+
     let increment: isize;
     let start_row_index: usize;
     let end_row_index: usize;
@@ -20,10 +22,11 @@ pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &
 
     let current_index = from_square / 8;
     if current_index != end_row_index {
+        let all_pieces = game.get_occupied_bitboard();
         // One square forwards
         let mut target_square = from_square as isize + increment;
         let mut target_bit = onebit_index_to_bit(target_square as usize);
-        if game.pieces.iter().all(|p| p.taken || p.bit != target_bit) {
+        if (target_bit & all_pieces) == 0 {
             pawn_moves.push(Move {
                 from_square: from_square,
                 to_square: target_square as usize,
@@ -34,7 +37,7 @@ pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &
             if current_index == start_row_index {
                 target_square += increment;
                 target_bit = onebit_index_to_bit(target_square as usize);
-                if game.pieces.iter().all(|p| p.taken || p.bit != target_bit) {
+                if (target_bit & all_pieces) == 0 {
                     pawn_moves.push(Move {
                         from_square: from_square,
                         to_square: target_square as usize,
@@ -44,12 +47,13 @@ pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &
             }
         }
 
+        let enemy_pieces = game.get_enemy_piece_bitboard();
         // Left diagonal capture
         if from_square % 8 > 0 {
             let left_diagonal_target_square = from_square as isize + increment - 1;
             let left_diagonal_target_bit = onebit_index_to_bit(left_diagonal_target_square as usize);
 
-            if let Some(_piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == left_diagonal_target_bit && p.colour != game.active_colour) {
+            if (left_diagonal_target_bit & enemy_pieces) != 0 {
                 pawn_moves.push(Move {
                     from_square: from_square,
                     to_square: left_diagonal_target_square as usize,
@@ -63,7 +67,7 @@ pub fn add_pawn_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &
             let right_diagonal_target_square = from_square as isize + increment + 1;
             let right_diagonal_target_bit = onebit_index_to_bit(right_diagonal_target_square as usize);
 
-            if let Some(_piece) = game.pieces.iter().find(|p| p.taken == false && p.bit == right_diagonal_target_bit && p.colour != game.active_colour) {
+            if (right_diagonal_target_bit & enemy_pieces) != 0 {
                 pawn_moves.push(Move {
                     from_square: from_square,
                     to_square: right_diagonal_target_square as usize,

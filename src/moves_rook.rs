@@ -11,7 +11,7 @@ pub fn generate_rook_moves(from_square: usize, game: &Game) -> Vec<Move> {
     let mut possible_moves = Vec::new();
 
     let occupied = game.get_occupied_bitboard();
-    let own_pieces = game.get_piece_bitboard();
+    let own_pieces = game.get_friendly_piece_bitboard();
     for (direction, attack_masks) in ROOK_ATTACK_MASKS.iter().enumerate() {
         let moves_in_direction = calculate_sliding_moves(
             attack_masks[from_square],

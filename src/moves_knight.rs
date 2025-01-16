@@ -13,7 +13,7 @@ pub fn generate_knight_moves(from_square: usize, game: &Game) -> Vec<Move> {
 
     let knight_moves = KNIGHT_MOVES[from_square];
 
-    let occupied_by_friends = game.get_piece_bitboard();
+    let occupied_by_friends = game.get_friendly_piece_bitboard();
     let valid_moves = knight_moves & !occupied_by_friends;
 
     for target_square in bitboard_to_indices(valid_moves) {

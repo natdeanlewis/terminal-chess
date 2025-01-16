@@ -4,7 +4,7 @@ use crate::utils::*;
 use crate::Colour;
 use crate::moves_king::{add_castle_moves, generate_king_moves};
 use crate::moves_knight::generate_knight_moves;
-use crate::moves_pawn::add_pawn_moves;
+use crate::moves_pawn::generate_pawn_moves;
 use crate::moves_queen::generate_queen_moves;
 use crate::moves_rook::generate_rook_moves;
 
@@ -46,7 +46,7 @@ pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move>
             let from_square = bit_to_onebit_index(piece.bit);
             match piece.piece_type {
                 PieceType::Pawn => {
-                    possible_moves = add_pawn_moves(from_square, possible_moves, game);
+                    possible_moves.extend(generate_pawn_moves(from_square, game));
                 }
                 PieceType::Knight => {
                     possible_moves.extend(generate_knight_moves(from_square, game));
