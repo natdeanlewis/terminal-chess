@@ -1,26 +1,60 @@
-use crate::moves_bishop::add_bishop_moves;
+use lazy_static::lazy_static;
+use crate::utils::bitboard_to_indices;
 use crate::game::{CastlingRights, Colour, Game, Square};
 use crate::moves::{generate_pseudolegal_moves_without_castling, square_under_threat, Move};
-use crate::moves_rook::add_rook_moves;
 
-pub fn add_king_moves(
-from_square: usize,
-mut possible_moves: Vec<Move>,
-squares_to_edges: [usize; 4],
-game: &Game,
-)
--> Vec<Move> {
-    let mut king_squares_to_edges: [usize; 4] = [0; 4];
-    for (i, squares_to_edge) in squares_to_edges.iter().enumerate() {
-        if *squares_to_edge > 0 {
-            king_squares_to_edges[i] = 1;
-        }
+lazy_static! {
+    static ref KING_MOVES: [u64; 64] = precompute_king_move_bitboards();
+}
+
+pub fn generate_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
+
+    let mut possible_moves = Vec::new();
+
+    let king_moves = KING_MOVES[from_square];
+
+    let occupied_by_friends = game.get_piece_bitboard();
+    let valid_moves = king_moves & !occupied_by_friends;
+
+    for target_square in bitboard_to_indices(valid_moves) {
+        possible_moves.push(Move {
+            from_square: from_square,
+            to_square: target_square,
+            promotion: None,
+        });
     }
-    possible_moves = add_bishop_moves(from_square, possible_moves, king_squares_to_edges, game);
-    possible_moves = add_rook_moves(from_square, possible_moves, king_squares_to_edges, game);
 
     possible_moves
 }
+
+fn precompute_king_move_bitboards() -> [u64; 64] {
+    let mut king_moves = [0u64; 64];
+
+    for square in 0..64 {
+        let rank = square / 8;
+        let file = square % 8;
+
+        let mut moves = 0u64;
+
+        for (dr, df) in &[
+            (-1, 0), (1, 0), (0, -1), (0, 1), // Orthogonal
+            (-1, -1), (-1, 1), (1, -1), (1, 1), // Diagonal
+        ] {
+            let new_rank = rank as isize + dr;
+            let new_file = file as isize + df;
+
+            if new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8 {
+                let target_square = (new_rank * 8 + new_file) as usize;
+                moves |= 1u64 << target_square;
+            }
+        }
+
+        king_moves[square] = moves;
+    }
+
+    king_moves
+}
+
 
 pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game) -> Vec<Move> {
     let mut test_game = game.clone();
