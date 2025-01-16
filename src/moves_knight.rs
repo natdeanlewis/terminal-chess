@@ -6,7 +6,7 @@ use crate::utils::bitboard_to_indices;
 lazy_static! {
     static ref KNIGHT_MOVES: [u64; 64] = precompute_knight_move_bitboards();
 }
-pub fn add_knight_moves(from_square: usize, game: &Game) -> Vec<Move> {
+pub fn generate_knight_moves(from_square: usize, game: &Game) -> Vec<Move> {
 
     let mut possible_moves = Vec::new();
 

@@ -317,6 +317,13 @@ impl Game {
             .filter(|piece| piece.colour == self.active_colour && piece.taken == false)
             .fold(0u64, |bitboard, piece| bitboard | piece.bit)
     }
+
+    pub fn get_occupied_bitboard(&self) -> u64 {
+        self.pieces
+            .iter()
+            .filter(|piece| piece.taken == false)
+            .fold(0u64, |bitboard, piece| bitboard | piece.bit)
+    }
 }
 
 pub fn game_loop(mut game: Game) {

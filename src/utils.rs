@@ -282,6 +282,7 @@ pub fn bitboard_to_indices(bitboard: u64) -> Vec<usize> {
     indices
 }
 
+#[allow(dead_code)]
 pub fn print_bitboard(bitboard: u64) {
     for rank in (0..8).rev() {
         for file in 0..8 {

@@ -3,10 +3,10 @@ use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
 use crate::Colour;
 use crate::moves_king::{add_castle_moves, add_king_moves};
-use crate::moves_knight::add_knight_moves;
+use crate::moves_knight::generate_knight_moves;
 use crate::moves_pawn::add_pawn_moves;
 use crate::moves_queen::add_queen_moves;
-use crate::moves_rook::add_rook_moves;
+use crate::moves_rook::generate_rook_moves;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Move {
@@ -49,15 +49,14 @@ pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move>
                     possible_moves = add_pawn_moves(from_square, possible_moves, game);
                 }
                 PieceType::Knight => {
-                    possible_moves.extend(add_knight_moves(from_square, game));
+                    possible_moves.extend(generate_knight_moves(from_square, game));
                 },
                 PieceType::Bishop => {
                     let squares_to_edges  = squares_to_edges(piece.bit);
                     possible_moves = add_bishop_moves(from_square, possible_moves, squares_to_edges, game);
                 },
                 PieceType::Rook => {
-                    let squares_to_edges  = squares_to_edges(piece.bit);
-                    possible_moves = add_rook_moves(from_square, possible_moves, squares_to_edges, game);
+                    possible_moves.extend(generate_rook_moves(from_square, game));
                 },
                 PieceType::Queen =>  {
                     let squares_to_edges  = squares_to_edges(piece.bit);
@@ -121,19 +120,6 @@ pub fn inactive_colour_in_check(game: &mut Game, king_square: usize) -> bool {
         return true;
     }
     false
-}
-
-pub fn offset_matches_row_offset(from_square: usize, offset: isize, row_offset: isize) -> bool {
-    let target_square = from_square as isize + offset;
-    if target_square < 0 {
-        return false
-    }
-    let target_row = target_square / 8;
-    if target_row >= 8 {
-        return false
-    }
-    let from_row =  from_square / 8;
-    return target_row - from_row as isize == row_offset;
 }
 
 pub fn square_under_threat(square_index: usize, opponent_moves: &Vec<Move>) -> bool {
@@ -377,6 +363,42 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     game.active_colour = inactive_colour;
 
     move_to_unmake
+}
+
+pub fn calculate_sliding_moves(attack_mask: u64, occupied: u64, direction: usize, own_pieces: u64) -> u64 {
+    let blockers = attack_mask & occupied;
+    let mut truncated_mask = attack_mask;
+
+    if blockers != 0 {
+        match direction {
+            0 | 1 => {
+                // North/East
+                let first_blocker = blockers.trailing_zeros() as usize;
+                let blocker_bit = 1u64 << first_blocker;
+                if blocker_bit & own_pieces == 0 {
+                    // Enemy piece, include
+                    truncated_mask &= blocker_bit | (blocker_bit - 1);
+                } else {
+                    // Friendly piece, exclude
+                    truncated_mask &= blocker_bit - 1;
+                }
+            },
+            2 | 3 => {
+                // South/West
+                let first_blocker = 63 - blockers.leading_zeros() as usize;
+                let blocker_bit = 1u64 << first_blocker;
+                if blocker_bit & own_pieces == 0 {
+                    // Enemy piece, include
+                    truncated_mask &= !(blocker_bit - 1);
+                } else {
+                    // Friendly piece, exclude
+                    truncated_mask &= !blocker_bit & !(blocker_bit - 1);
+                }
+            },
+            _ => panic!("Invalid direction"),
+        };
+    }
+    truncated_mask
 }
 
 #[test]

@@ -1,7 +1,7 @@
 use crate::moves_bishop::add_bishop_moves;
 use crate::game::Game;
 use crate::moves::Move;
-use crate::moves_rook::add_rook_moves;
+use crate::moves_rook::{generate_rook_moves};
 
 pub fn add_queen_moves(
     from_square: usize,
@@ -10,6 +10,6 @@ pub fn add_queen_moves(
     game: &Game,
 ) -> Vec<Move> {
     possible_moves = add_bishop_moves(from_square, possible_moves, squares_to_edges, game);
-    possible_moves = add_rook_moves(from_square, possible_moves, squares_to_edges, game);
+    possible_moves.extend(generate_rook_moves(from_square, game));
     possible_moves
 }
