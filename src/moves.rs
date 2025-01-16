@@ -31,14 +31,6 @@ pub struct MoveToUnmake {
     pub previous_castled_rook_piece_to_square: Option<usize>,
 }
 
-
-fn squares_to_edges(bit: u64) -> [usize; 4] {
-    let onebit_index = bit_to_onebit_index(bit);
-    let column_num = onebit_index % 8 + 1;
-    let row_num = onebit_index / 8 + 1;
-    [8 - row_num, 8 - column_num, row_num - 1, column_num - 1]
-}
-
 pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move> {
     let mut possible_moves: Vec<Move> = Vec::new();
     for piece in &game.pieces {
