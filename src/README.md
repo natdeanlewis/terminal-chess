@@ -41,6 +41,7 @@ test with println!s :`cargo test -- --nocapture`
   - use bitboards for move calculation
   - use bitboards for threatened square, check calcuation
   - make sure naming is consistent, square, piece index onebit_index, bit etc.
+  - updates to pawn moves on 16 jan actualyl seem to have slowed down perft? is eval faster? confirm this though it's similar
 
 - examples:
   - coords: e4
