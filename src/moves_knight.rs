@@ -1,6 +1,7 @@
 use crate::game::Game;
 use crate::moves::{Move};
 use lazy_static::lazy_static;
+use crate::utils::bitboard_to_indices;
 
 lazy_static! {
     static ref KNIGHT_MOVES: [u64; 64] = precompute_knight_move_bitboards();
@@ -51,15 +52,4 @@ fn precompute_knight_move_bitboards() -> [u64; 64] {
     }
 
     knight_moves
-}
-
-fn bitboard_to_indices(bitboard: u64) -> Vec<usize> {
-    let mut indices = Vec::new();
-    let mut bits = bitboard;
-    while bits != 0 {
-        let lsb = bits.trailing_zeros() as usize;
-        indices.push(lsb);
-        bits &= bits - 1;
-    }
-    indices
 }

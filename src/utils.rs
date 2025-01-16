@@ -271,6 +271,17 @@ pub fn print_board(game: &Game) {
     println!("{}", game.to_string());
 }
 
+pub fn bitboard_to_indices(bitboard: u64) -> Vec<usize> {
+    let mut indices = Vec::new();
+    let mut bits = bitboard;
+    while bits != 0 {
+        let lsb = bits.trailing_zeros() as usize;
+        indices.push(lsb);
+        bits &= bits - 1;
+    }
+    indices
+}
+
 pub fn print_bitboard(bitboard: u64) {
     for rank in (0..8).rev() {
         for file in 0..8 {
