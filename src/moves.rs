@@ -1,12 +1,12 @@
-use crate::moves_bishop::{generate_bishop_attacked_squares, generate_bishop_moves};
+use crate::moves_bishop::{generate_bishop_attacked_squares_including_own, generate_bishop_moves};
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
 use crate::Colour;
-use crate::moves_king::{add_castle_moves, generate_king_attacked_squares, generate_legal_king_moves};
-use crate::moves_knight::{generate_knight_attacked_squares, generate_knight_moves};
-use crate::moves_pawn::{generate_pawn_attacked_squares, generate_pawn_moves};
-use crate::moves_queen::{generate_queen_attacked_squares, generate_queen_moves};
-use crate::moves_rook::{generate_rook_attacked_squares, generate_rook_moves};
+use crate::moves_king::{add_castle_moves, generate_king_attacked_squares_including_own, generate_legal_king_moves};
+use crate::moves_knight::{generate_knight_attacked_squares_including_own, generate_knight_moves};
+use crate::moves_pawn::{generate_pawn_attacked_squares_including_own, generate_pawn_moves};
+use crate::moves_queen::{generate_queen_attacked_squares_including_own, generate_queen_moves};
+use crate::moves_rook::{generate_rook_attacked_squares_including_own, generate_rook_moves};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Move {
@@ -69,24 +69,23 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
             let from_square = bit_to_onebit_index(piece.bit);
             match piece.piece_type {
                 PieceType::Pawn => {
-                    attacked_squares |= generate_pawn_attacked_squares(from_square, opponent_colour);
+                    attacked_squares |= generate_pawn_attacked_squares_including_own(from_square, opponent_colour);
                 }
                 PieceType::Knight => {
-                    attacked_squares |= generate_knight_attacked_squares(from_square);
+                    attacked_squares |= generate_knight_attacked_squares_including_own(from_square);
                 },
                 PieceType::Bishop => {
-                    attacked_squares |= generate_bishop_attacked_squares(from_square, game);
+                    attacked_squares |= generate_bishop_attacked_squares_including_own(from_square, game);
                 },
                 PieceType::Rook => {
-                    attacked_squares |= generate_rook_attacked_squares(from_square, game);
+                    attacked_squares |= generate_rook_attacked_squares_including_own(from_square, game);
                 },
                 PieceType::Queen =>  {
-                    attacked_squares |= generate_queen_attacked_squares(from_square, game);
+                    attacked_squares |= generate_queen_attacked_squares_including_own(from_square, game);
                 },
                 PieceType::King => {
-                    attacked_squares |= generate_king_attacked_squares(from_square, game);
+                    attacked_squares |= generate_king_attacked_squares_including_own(from_square);
                 }
-                _ => ()
             }
         }
     }
@@ -389,7 +388,7 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     move_to_unmake
 }
 
-pub fn calculate_sliding_moves(attack_mask: u64, occupied: u64, direction: usize, own_pieces: u64) -> u64 {
+pub fn calculate_sliding_attacked_squares_excluding_own(attack_mask: u64, occupied: u64, direction: usize, own_pieces: u64) -> u64 {
     let blockers = attack_mask & occupied;
     let mut truncated_mask = attack_mask;
 
@@ -418,6 +417,30 @@ pub fn calculate_sliding_moves(attack_mask: u64, occupied: u64, direction: usize
                     // Friendly piece, exclude
                     truncated_mask &= !blocker_bit & !(blocker_bit - 1);
                 }
+            },
+            _ => panic!("Invalid direction"),
+        };
+    }
+    truncated_mask
+}
+
+pub fn calculate_sliding_attacked_squares_including_own(attack_mask: u64, occupied: u64, direction: usize) -> u64 {
+    let blockers = attack_mask & occupied;
+    let mut truncated_mask = attack_mask;
+
+    if blockers != 0 {
+        match direction {
+            0 | 1 => {
+                // North/East (orthogonal), North-West/North-East (diagonal)t
+                let first_blocker = blockers.trailing_zeros() as usize;
+                let blocker_bit = 1u64 << first_blocker;
+                truncated_mask &= blocker_bit | (blocker_bit - 1);
+            },
+            2 | 3 => {
+                // South/West (orthogonal), South-East/South-West (diagonal)t
+                let first_blocker = 63 - blockers.leading_zeros() as usize;
+                let blocker_bit = 1u64 << first_blocker;
+                truncated_mask &= !(blocker_bit - 1);
             },
             _ => panic!("Invalid direction"),
         };

@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use crate::game::Game;
-use crate::moves::{calculate_sliding_moves, Move};
+use crate::moves::{calculate_sliding_attacked_squares_including_own, calculate_sliding_attacked_squares_excluding_own, Move};
 use crate::utils::{bitboard_to_indices};
 
 
@@ -8,17 +8,34 @@ lazy_static! {
     static ref BISHOP_ATTACK_MASKS: [[u64; 64]; 4] = precompute_bishop_attack_masks();
 }
 
-pub fn generate_bishop_attacked_squares(from_square: usize, game: &Game) -> u64 {
+pub fn generate_bishop_attacked_squares_including_own(from_square: usize, game: &Game) -> u64 {
+    let mut attacked_squares = 0u64;
+
+    let occupied = game.get_occupied_bitboard();
+    for (direction, attack_masks) in BISHOP_ATTACK_MASKS.iter().enumerate() {
+        let moves_in_direction = calculate_sliding_attacked_squares_including_own(
+            attack_masks[from_square],
+            occupied,
+            direction,
+        );
+
+        attacked_squares |= moves_in_direction;
+    }
+
+    attacked_squares
+}
+
+pub fn generate_bishop_attacked_squares_excluding_own(from_square: usize, game: &Game) -> u64 {
     let mut attacked_squares = 0u64;
 
     let occupied = game.get_occupied_bitboard();
     let own_pieces = game.get_friendly_piece_bitboard();
     for (direction, attack_masks) in BISHOP_ATTACK_MASKS.iter().enumerate() {
-        let moves_in_direction = calculate_sliding_moves(
+        let moves_in_direction = calculate_sliding_attacked_squares_excluding_own(
             attack_masks[from_square],
             occupied,
             direction,
-            own_pieces
+            own_pieces,
         );
 
         attacked_squares |= moves_in_direction;
@@ -28,10 +45,11 @@ pub fn generate_bishop_attacked_squares(from_square: usize, game: &Game) -> u64 
 }
 
 
+
 pub fn generate_bishop_moves(from_square: usize, game: &Game) -> Vec<Move> {
     let mut possible_moves = Vec::new();
 
-    let valid_moves = generate_bishop_attacked_squares(from_square, game);
+    let valid_moves = generate_bishop_attacked_squares_excluding_own(from_square, game);
 
         for target_square in bitboard_to_indices(valid_moves) {
             possible_moves.push(Move {

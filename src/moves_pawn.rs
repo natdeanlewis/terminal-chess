@@ -3,19 +3,16 @@ use crate::game::Colour::White;
 use crate::moves::Move;
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 
-pub fn generate_pawn_attacked_squares(from_square: usize, colour: Colour) -> u64 {
+pub fn generate_pawn_attacked_squares_including_own(from_square: usize, colour: Colour) -> u64 {
     let mut attacked_squares = 064;
 
     let increment: isize;
-    let start_row_index: usize;
     let end_row_index: usize;
     if colour == Colour::White {
         increment = 8;
-        start_row_index = 1;
         end_row_index = 7;
     } else {
         increment = -8;
-        start_row_index = 6;
         end_row_index = 0;
     }
 

@@ -1,4 +1,4 @@
-use crate::game::{Colour, Game};
+use crate::game::{Game};
 use crate::moves::{Move};
 use lazy_static::lazy_static;
 use crate::utils::bitboard_to_indices;
@@ -11,9 +11,7 @@ pub fn generate_knight_moves(from_square: usize, game: &Game) -> Vec<Move> {
 
     let mut possible_moves = Vec::new();
 
-    let mut knight_moves = generate_knight_attacked_squares(from_square);
-    let occupied_by_friends = game.get_friendly_piece_bitboard();
-    let valid_moves = knight_moves & !occupied_by_friends;
+    let valid_moves = generate_knight_attacked_squares_excluding_own(from_square, game);
 
     for target_square in bitboard_to_indices(valid_moves) {
         possible_moves.push(Move {
@@ -26,8 +24,17 @@ pub fn generate_knight_moves(from_square: usize, game: &Game) -> Vec<Move> {
     possible_moves
 }
 
-pub fn generate_knight_attacked_squares(from_square: usize) -> u64 {
+pub fn generate_knight_attacked_squares_including_own(from_square: usize) -> u64 {
     KNIGHT_MOVES[from_square]
+}
+
+pub fn generate_knight_attacked_squares_excluding_own(from_square: usize, game: &Game) -> u64 {
+    let knight_moves = generate_knight_attacked_squares_including_own(from_square);
+
+    let occupied_by_friends = game.get_friendly_piece_bitboard();
+    let valid_moves = knight_moves & !occupied_by_friends;
+
+    valid_moves
 }
 
 fn precompute_knight_move_bitboards() -> [u64; 64] {

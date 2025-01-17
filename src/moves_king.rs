@@ -9,7 +9,7 @@ lazy_static! {
 pub fn generate_legal_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
     let mut possible_moves = Vec::new();
 
-    let pseudolegal_moves = generate_king_attacked_squares(from_square, game);
+    let pseudolegal_moves = generate_king_attacked_squares_excluding_own(from_square, game);
 
     let opponent_colour = match game.active_colour {
         Colour::White => Colour::Black,
@@ -30,14 +30,19 @@ pub fn generate_legal_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
     possible_moves
 }
 
-pub fn generate_king_attacked_squares(from_square: usize, game: &Game) -> u64 {
-    let king_moves = KING_MOVES[from_square];
+pub fn generate_king_attacked_squares_including_own(from_square: usize) -> u64 {
+    KING_MOVES[from_square]
+}
+
+pub fn generate_king_attacked_squares_excluding_own(from_square: usize, game: &Game) -> u64 {
+    let king_moves = generate_king_attacked_squares_including_own(from_square);
 
     let occupied_by_friends = game.get_friendly_piece_bitboard();
     let valid_moves = king_moves & !occupied_by_friends;
 
     valid_moves
 }
+
 
 fn precompute_king_move_bitboards() -> [u64; 64] {
     let mut king_moves = [0u64; 64];
