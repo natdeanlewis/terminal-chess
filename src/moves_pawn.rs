@@ -3,6 +3,44 @@ use crate::game::Colour::White;
 use crate::moves::Move;
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 
+pub fn generate_pawn_attacked_squares(from_square: usize, opponent_colour: Colour) -> u64 {
+    let mut attacked_squares = 064;
+
+    let increment: isize;
+    let start_row_index: usize;
+    let end_row_index: usize;
+    if opponent_colour == Colour::White {
+        increment = 8;
+        start_row_index = 1;
+        end_row_index = 7;
+    } else {
+        increment = -8;
+        start_row_index = 6;
+        end_row_index = 0;
+    }
+
+    let current_index = from_square / 8;
+    if current_index != end_row_index {
+        // Left diagonal capture
+        if from_square % 8 > 0 {
+            let left_diagonal_target_square = from_square as isize + increment - 1;
+            let left_diagonal_target_bit = onebit_index_to_bit(left_diagonal_target_square as usize);
+
+            attacked_squares |= left_diagonal_target_bit
+        }
+
+        // Right diagonal capture
+        if from_square % 8 < 7 {
+            let right_diagonal_target_square = from_square as isize + increment + 1;
+            let right_diagonal_target_bit = onebit_index_to_bit(right_diagonal_target_square as usize);
+
+            attacked_squares |= right_diagonal_target_bit
+        }
+    }
+    attacked_squares
+}
+
+
 pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
     let mut possible_moves = Vec::new();
 
