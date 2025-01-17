@@ -72,7 +72,7 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
                     attacked_squares |= generate_pawn_attacked_squares(from_square, opponent_colour);
                 }
                 PieceType::Knight => {
-                    attacked_squares |= generate_knight_attacked_squares(from_square, game);
+                    attacked_squares |= generate_knight_attacked_squares(from_square);
                 },
                 PieceType::Bishop => {
                     attacked_squares |= generate_bishop_attacked_squares(from_square, game);
