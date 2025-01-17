@@ -1,12 +1,12 @@
-use crate::moves_bishop::{generate_bishop_moves};
+use crate::moves_bishop::{generate_bishop_attacked_squares, generate_bishop_moves};
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
 use crate::Colour;
-use crate::moves_king::{add_castle_moves, generate_king_moves};
-use crate::moves_knight::generate_knight_moves;
-use crate::moves_pawn::generate_pawn_moves;
-use crate::moves_queen::generate_queen_moves;
-use crate::moves_rook::generate_rook_moves;
+use crate::moves_king::{add_castle_moves, generate_king_attacked_squares, generate_legal_king_moves};
+use crate::moves_knight::{generate_knight_attacked_squares, generate_knight_moves};
+use crate::moves_pawn::{generate_pawn_attacked_squares, generate_pawn_moves};
+use crate::moves_queen::{generate_queen_attacked_squares, generate_queen_moves};
+use crate::moves_rook::{generate_rook_attacked_squares, generate_rook_moves};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Move {
@@ -53,13 +53,47 @@ pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move>
                     possible_moves.extend(generate_queen_moves(from_square, game));
                 },
                 PieceType::King => {
-                    possible_moves.extend(generate_king_moves(from_square, game));
+                    possible_moves.extend(generate_legal_king_moves(from_square, game));
                 }
             }
         }
     }
 
     possible_moves
+}
+
+pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
+    let mut attacked_squares =  0u64;
+    for piece in &game.pieces {
+        if piece.colour == opponent_colour && piece.taken == false {
+            let from_square = bit_to_onebit_index(piece.bit);
+            match piece.piece_type {
+                PieceType::Pawn => {
+                    attacked_squares |= generate_pawn_attacked_squares(from_square, opponent_colour);
+                }
+                PieceType::Knight => {
+                    attacked_squares |= generate_knight_attacked_squares(from_square, game);
+                },
+                PieceType::Bishop => {
+                    attacked_squares |= generate_bishop_attacked_squares(from_square, game);
+                },
+                PieceType::Rook => {
+                    attacked_squares |= generate_rook_attacked_squares(from_square, game);
+                },
+                PieceType::Queen =>  {
+                    attacked_squares |= generate_queen_attacked_squares(from_square, game);
+                },
+                PieceType::King => {
+                    attacked_squares |= generate_king_attacked_squares(from_square, game);
+                }
+                _ => ()
+            }
+        }
+    }
+
+    // print_board(game);
+    // print_bitboard(attacked_squares);
+    attacked_squares
 }
 
 fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
@@ -86,6 +120,7 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     // Only include moves that don't result in a check on the active colour
     let mut new_possible_moves = vec![];
 
+    // king moves are legal already, make sure other pieces don't move king INTO check
     for possible_move in possible_moves {
         let move_to_unmake = make_move(game, possible_move);
 

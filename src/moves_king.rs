@@ -1,15 +1,24 @@
 use lazy_static::lazy_static;
 use crate::utils::bitboard_to_indices;
 use crate::game::{CastlingRights, Colour, Game, Square};
-use crate::moves::{generate_pseudolegal_moves_without_castling, square_under_threat, Move};
+use crate::moves::{generate_pseudolegal_moves_without_castling, square_under_threat, squares_attacked_by_opponent_bitboard, Move};
 
 lazy_static! {
     static ref KING_MOVES: [u64; 64] = precompute_king_move_bitboards();
 }
-pub fn generate_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
+pub fn generate_legal_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
     let mut possible_moves = Vec::new();
 
-    let valid_moves = generate_king_attacked_squares(from_square, game);
+    let pseudolegal_moves = generate_king_attacked_squares(from_square, game);
+
+    let opponent_colour = match game.active_colour {
+        Colour::White => Colour::Black,
+        Colour::Black => Colour::White,
+    };
+    let squares_attacked_by_opponent = squares_attacked_by_opponent_bitboard(game, opponent_colour);
+
+    // Don't move the king into check
+    let valid_moves = pseudolegal_moves & !squares_attacked_by_opponent;
 
     for target_square in bitboard_to_indices(valid_moves) {
         possible_moves.push(Move {
@@ -18,7 +27,6 @@ pub fn generate_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
             promotion: None,
         });
     }
-
     possible_moves
 }
 
