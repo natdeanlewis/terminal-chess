@@ -10,7 +10,7 @@ lazy_static! {
 pub fn generate_rook_attacked_squares_including_own(from_square: usize, game: &Game, king_bit: u64) -> u64 {
     let mut attacked_squares = 0u64;
     let occupied = game.get_occupied_bitboard();
-    // Exclude king bit from occupied so king can't just move directly from a checking sliding piece
+    // Exclude king bit from occupied so king can't just move directly away from a checking sliding piece
     let occupied_excluding_king = occupied & !king_bit;
     for (direction, attack_masks) in ROOK_ATTACK_MASKS.iter().enumerate() {
         let moves_in_direction = calculate_sliding_attacked_squares_including_own(
@@ -24,6 +24,26 @@ pub fn generate_rook_attacked_squares_including_own(from_square: usize, game: &G
 
     attacked_squares
 }
+
+pub fn generate_rook_absolute_pins(from_square: usize, game: &Game, king_bit: u64) -> u64 {
+    let mut attacked_squares = 0u64;
+    // Ignore non-king friendly pieces from the occupied squares to generate pins
+    let occupied = king_bit;
+    for (direction, attack_masks) in ROOK_ATTACK_MASKS.iter().enumerate() {
+        let moves_in_direction = calculate_sliding_attacked_squares_including_own(
+            attack_masks[from_square],
+            occupied,
+            direction,
+        );
+
+        if moves_in_direction & king_bit != 0 {
+            attacked_squares |= moves_in_direction;
+        }
+    }
+
+    attacked_squares
+}
+
 
 pub fn generate_rook_attacked_squares_excluding_own(from_square: usize, game: &Game) -> u64 {
     let mut attacked_squares = 0u64;

@@ -1,7 +1,7 @@
 use crate::game::Game;
-use crate::moves::{Move};
-use crate::moves_bishop::{generate_bishop_attacked_squares_excluding_own, generate_bishop_attacked_squares_including_own};
-use crate::moves_rook::{generate_rook_attacked_squares_excluding_own, generate_rook_attacked_squares_including_own};
+use crate::moves::{calculate_sliding_attacked_squares_including_own, Move};
+use crate::moves_bishop::{generate_bishop_absolute_pins, generate_bishop_attacked_squares_excluding_own, generate_bishop_attacked_squares_including_own};
+use crate::moves_rook::{generate_rook_absolute_pins, generate_rook_attacked_squares_excluding_own, generate_rook_attacked_squares_including_own};
 use crate::utils::bitboard_to_indices;
 
 pub fn generate_queen_attacked_squares_including_own(from_square: usize, game: &Game, king_bit: u64) -> u64 {
@@ -10,6 +10,10 @@ pub fn generate_queen_attacked_squares_including_own(from_square: usize, game: &
 
 pub fn generate_queen_attacked_squares_excluding_own(from_square: usize, game: &Game) -> u64 {
     generate_bishop_attacked_squares_excluding_own(from_square, game) | generate_rook_attacked_squares_excluding_own(from_square, game)
+}
+
+pub fn generate_queen_absolute_pins(from_square: usize, game: &Game, king_bit: u64) -> u64 {
+    generate_bishop_absolute_pins(from_square, game, king_bit) | generate_rook_absolute_pins(from_square, game, king_bit)
 }
 
 pub fn generate_queen_moves(from_square: usize, game: &Game) -> Vec<Move> {

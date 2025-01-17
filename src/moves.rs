@@ -1,12 +1,12 @@
-use crate::moves_bishop::{generate_bishop_attacked_squares_including_own, generate_bishop_moves};
+use crate::moves_bishop::{generate_bishop_absolute_pins, generate_bishop_attacked_squares_including_own, generate_bishop_moves};
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
 use crate::Colour;
 use crate::moves_king::{add_castle_moves, generate_king_attacked_squares_including_own, generate_legal_king_moves};
 use crate::moves_knight::{generate_knight_attacked_squares_including_own, generate_knight_moves};
 use crate::moves_pawn::{generate_pawn_attacked_squares_including_own, generate_pawn_moves};
-use crate::moves_queen::{generate_queen_attacked_squares_including_own, generate_queen_moves};
-use crate::moves_rook::{generate_rook_attacked_squares_including_own, generate_rook_moves};
+use crate::moves_queen::{generate_queen_absolute_pins, generate_queen_attacked_squares_including_own, generate_queen_moves};
+use crate::moves_rook::{generate_rook_absolute_pins, generate_rook_attacked_squares_including_own, generate_rook_moves};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Move {
@@ -101,6 +101,37 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
     attacked_squares
 }
 
+pub fn absolute_pins_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
+    let mut attacked_squares =  0u64;
+    let mut king_bit = 0u64;
+    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+        king_bit = king.bit;
+    }
+
+    for piece in &game.pieces {
+        if piece.colour == opponent_colour && piece.taken == false {
+            let from_square = bit_to_onebit_index(piece.bit);
+            match piece.piece_type {
+                PieceType::Bishop => {
+                    attacked_squares |= generate_bishop_absolute_pins(from_square, game, king_bit);
+                },
+                PieceType::Rook => {
+                    attacked_squares |= generate_rook_absolute_pins(from_square, game, king_bit);
+                },
+                PieceType::Queen =>  {
+                    attacked_squares |= generate_queen_absolute_pins(from_square, game, king_bit);
+                },
+                _ => ()
+            }
+        }
+    }
+
+    // println!("Attacked squares by : {:?}", opponent_colour);
+    // print_board(game);
+    // print_bitboard(attacked_squares);
+    attacked_squares
+}
+
 fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
     let mut possible_moves = generate_pseudolegal_moves_without_castling(game);
 
@@ -126,19 +157,36 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     let mut new_possible_moves = vec![];
 
     // king moves are legal already, make sure other pieces don't move king INTO check
-    let mut king_square = 0;
+    let mut king_square = 64;
     if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
         king_square = bit_to_onebit_index(king.bit);
     }
+
+    // if king in attacked_squares: king must move out or a non-pinned piece must move to protect
     for possible_move in possible_moves {
         if possible_move.from_square == king_square {
             new_possible_moves.push(possible_move);
         } else {
-            let move_to_unmake = make_move(game, possible_move);
-            if !inactive_colour_in_check(game, king_square) {
+            // TODO: check if in check. if not just push the move
+            // else:
+            // generate pin lines with king in, don't let pieces move out of them if they're the only piece in (OR if only it and en passant captured pawn)
+            let opponent_colour = match game.active_colour {
+                Colour::White => Colour::Black,
+                Colour::Black => Colour::White,
+            };
+            let pin_squares = absolute_pins_bitboard(game, opponent_colour);
+            print_bitboard(pin_squares);
+            if onebit_index_to_bit(possible_move.from_square) & pin_squares == 0 {
+                // now, check if to_square is
                 new_possible_moves.push(possible_move);
             }
-            unmake_move(game, move_to_unmake);
+
+                //
+                // let move_to_unmake = make_move(game, possible_move);
+                // if !inactive_colour_in_check(game, king_square) {
+                //     new_possible_moves.push(possible_move);
+                // }
+                // unmake_move(game, move_to_unmake);
         }
     }
 
