@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use crate::game::Game;
+use crate::game::{Game};
 use crate::moves::{calculate_sliding_attacked_squares_including_own, calculate_sliding_attacked_squares_excluding_own, Move};
 use crate::utils::{bitboard_to_indices};
 
@@ -8,14 +8,15 @@ lazy_static! {
     static ref BISHOP_ATTACK_MASKS: [[u64; 64]; 4] = precompute_bishop_attack_masks();
 }
 
-pub fn generate_bishop_attacked_squares_including_own(from_square: usize, game: &Game) -> u64 {
+pub fn generate_bishop_attacked_squares_including_own(from_square: usize, game: &Game, king_bit: u64) -> u64 {
     let mut attacked_squares = 0u64;
-
     let occupied = game.get_occupied_bitboard();
+    // Exclude king bit from occupied so king can't just move directly from a checking sliding piece
+    let occupied_excluding_king = occupied & !king_bit;
     for (direction, attack_masks) in BISHOP_ATTACK_MASKS.iter().enumerate() {
         let moves_in_direction = calculate_sliding_attacked_squares_including_own(
             attack_masks[from_square],
-            occupied,
+            occupied_excluding_king,
             direction,
         );
 

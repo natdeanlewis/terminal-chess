@@ -64,6 +64,11 @@ pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move>
 
 pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
     let mut attacked_squares =  0u64;
+    let mut king_bit = 0u64;
+    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+        king_bit = king.bit;
+    }
+
     for piece in &game.pieces {
         if piece.colour == opponent_colour && piece.taken == false {
             let from_square = bit_to_onebit_index(piece.bit);
@@ -75,13 +80,13 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
                     attacked_squares |= generate_knight_attacked_squares_including_own(from_square);
                 },
                 PieceType::Bishop => {
-                    attacked_squares |= generate_bishop_attacked_squares_including_own(from_square, game);
+                    attacked_squares |= generate_bishop_attacked_squares_including_own(from_square, game, king_bit);
                 },
                 PieceType::Rook => {
-                    attacked_squares |= generate_rook_attacked_squares_including_own(from_square, game);
+                    attacked_squares |= generate_rook_attacked_squares_including_own(from_square, game, king_bit);
                 },
                 PieceType::Queen =>  {
-                    attacked_squares |= generate_queen_attacked_squares_including_own(from_square, game);
+                    attacked_squares |= generate_queen_attacked_squares_including_own(from_square, game, king_bit);
                 },
                 PieceType::King => {
                     attacked_squares |= generate_king_attacked_squares_including_own(from_square);
@@ -90,6 +95,7 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
         }
     }
 
+    // println!("Attacked squares by : {:?}", opponent_colour);
     // print_board(game);
     // print_bitboard(attacked_squares);
     attacked_squares
@@ -120,18 +126,20 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     let mut new_possible_moves = vec![];
 
     // king moves are legal already, make sure other pieces don't move king INTO check
+    let mut king_square = 0;
+    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+        king_square = bit_to_onebit_index(king.bit);
+    }
     for possible_move in possible_moves {
-        let move_to_unmake = make_move(game, possible_move);
-
-        if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != game.active_colour) {
-            let king_square = bit_to_onebit_index(king.bit);
-
+        if possible_move.from_square == king_square {
+            new_possible_moves.push(possible_move);
+        } else {
+            let move_to_unmake = make_move(game, possible_move);
             if !inactive_colour_in_check(game, king_square) {
                 new_possible_moves.push(possible_move);
             }
+            unmake_move(game, move_to_unmake);
         }
-
-        unmake_move(game, move_to_unmake);
     }
 
     new_possible_moves
@@ -476,6 +484,15 @@ fn perft_3() {
     run_perft_test(&mut game, &expected_node_counts, test_number);
 }
 
+// est]
+// fn perft_3_a4a5_h4g4() {
+//     let test_number = 2;
+//     let expected_node_counts = [1, 14, 224, 2_812, 43_238, 674_624];
+//
+//     let mut game = Game::initialize(_PERFT_3_FEN_STR);
+//     run_perft_test(&mut game, &expected_node_counts, test_number);
+// }
+
 #[test]
 fn perft_4() {
     let test_number = 4;
@@ -513,9 +530,9 @@ fn perft_func(depth: u32, game: &mut Game) -> u32 {
     for n_move in n_moves.iter() {
         let move_to_unmake = make_move(game, *n_move);
         let nodes: u32 = perft_func(depth - 1, game);
-        // let depth_to_print - 3;
+        // let depth_to_print = 2;
         // if depth == depth_to_print {
-        //     println!("{}: {}", move_to_unambiguous_algebraic_notation(game, *n_move).expect("!"), nodes);
+            // println!("{:?}{:?}: {}", onebit_index_to_coords(n_move.from_square), onebit_index_to_coords(n_move.to_square), nodes);
         // }
         total += nodes;
         unmake_move(game, move_to_unmake);
