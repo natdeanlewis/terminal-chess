@@ -8,8 +8,8 @@ lazy_static! {
     static ref BISHOP_ATTACK_MASKS: [[u64; 64]; 4] = precompute_bishop_attack_masks();
 }
 
-pub fn generate_bishop_moves(from_square: usize, game: &Game) -> Vec<Move> {
-    let mut possible_moves = Vec::new();
+pub fn generate_bishop_attacked_squares(from_square: usize, game: &Game) -> u64 {
+    let mut attacked_squares = 0u64;
 
     let occupied = game.get_occupied_bitboard();
     let own_pieces = game.get_friendly_piece_bitboard();
@@ -21,14 +21,25 @@ pub fn generate_bishop_moves(from_square: usize, game: &Game) -> Vec<Move> {
             own_pieces
         );
 
-        for target_square in bitboard_to_indices(moves_in_direction) {
+        attacked_squares |= moves_in_direction;
+    }
+
+    attacked_squares
+}
+
+
+pub fn generate_bishop_moves(from_square: usize, game: &Game) -> Vec<Move> {
+    let mut possible_moves = Vec::new();
+
+    let valid_moves = generate_bishop_attacked_squares(from_square, game);
+
+        for target_square in bitboard_to_indices(valid_moves) {
             possible_moves.push(Move {
                 from_square,
                 to_square: target_square,
                 promotion: None,
             });
         }
-    }
 
     possible_moves
 }

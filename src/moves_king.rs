@@ -6,15 +6,10 @@ use crate::moves::{generate_pseudolegal_moves_without_castling, square_under_thr
 lazy_static! {
     static ref KING_MOVES: [u64; 64] = precompute_king_move_bitboards();
 }
-
 pub fn generate_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
-
     let mut possible_moves = Vec::new();
 
-    let king_moves = KING_MOVES[from_square];
-
-    let occupied_by_friends = game.get_friendly_piece_bitboard();
-    let valid_moves = king_moves & !occupied_by_friends;
+    let valid_moves = generate_king_attacked_squares(from_square, game);
 
     for target_square in bitboard_to_indices(valid_moves) {
         possible_moves.push(Move {
@@ -25,6 +20,15 @@ pub fn generate_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
     }
 
     possible_moves
+}
+
+pub fn generate_king_attacked_squares(from_square: usize, game: &Game) -> u64 {
+    let king_moves = KING_MOVES[from_square];
+
+    let occupied_by_friends = game.get_friendly_piece_bitboard();
+    let valid_moves = king_moves & !occupied_by_friends;
+
+    valid_moves
 }
 
 fn precompute_king_move_bitboards() -> [u64; 64] {
