@@ -1,5 +1,3 @@
-use std::path::absolute;
-
 use crate::moves_bishop::{generate_bishop_absolute_pins, generate_bishop_attacked_squares_including_own, generate_bishop_moves};
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
@@ -181,20 +179,25 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
         } else if king_bit & squares_attacked_by_opponent_bitboard == 0 {
             // king is not in check and piece to move is not king
             // generate pin lines with king in, don't let pieces move out of them if they're the only piece in (OR if only it and en passant captured pawn)
-
-            if let Some(absolute_pin) = absolute_pins_bitboards.iter().find(|&b|
+            // for a in &absolute_pins_bitboards {
+            //     print_bitboard(*a);
+            //     println!("{}",onebit_index_to_bit(possible_move.from_square) & *a != 0);
+            // }
+            let absolute_pins_containing_from_square = absolute_pins_bitboards.iter().filter(|&b|
                 // move is from pinned line
-                (onebit_index_to_bit(possible_move.from_square) & b != 0))
+                (onebit_index_to_bit(possible_move.from_square) & b != 0));
+            let smallest_absolute_pin = absolute_pins_containing_from_square.fold(u64::MAX, |acc, &x| acc & x);
+            if smallest_absolute_pin != 0 {
                 // TODO disallow e.p.
-                {
-                    let pieces_along_pin_indices = bitboard_to_indices(game.get_occupied_bitboard() & absolute_pin);
+                    // print_bitboard(smallest_absolute_pin);
+                    
+                    let pieces_along_pin_indices = bitboard_to_indices(game.get_occupied_bitboard() & smallest_absolute_pin);
                     let pieces_along_pin_count = pieces_along_pin_indices.len();
-                    // print_bitboard(*absolute_pin);
                     // must contain at least king, pinning piece and one other piece (as 2 pieces implies king is in check, fewer implies not a pin which are both false)
                     if pieces_along_pin_count == 3 {
                     // pin contains ONLY the king, pinning piece and one blocker
                         // if piece is absolutely pinned:
-                        if onebit_index_to_bit(possible_move.to_square) & absolute_pin != 0 {
+                        if onebit_index_to_bit(possible_move.to_square) & smallest_absolute_pin != 0 {
                             // piece can move along pin (including taking pinning piece )
                             new_possible_moves.push(possible_move);
                         }
@@ -567,7 +570,7 @@ fn perft_3() {
     run_perft_test(&mut game, &expected_node_counts, test_number);
 }
 
-// est]
+// #[test]
 // fn perft_3_a4a5_h4g4() {
 //     let test_number = 2;
 //     let expected_node_counts = [1, 14, 224, 2_812, 43_238, 674_624];
