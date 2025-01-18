@@ -186,18 +186,18 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
             let absolute_pins_containing_from_square = absolute_pins_bitboards.iter().filter(|&b|
                 // move is from pinned line
                 (onebit_index_to_bit(possible_move.from_square) & b != 0));
-            let smallest_absolute_pin = absolute_pins_containing_from_square.fold(u64::MAX, |acc, &x| acc & x);
-            if smallest_absolute_pin != 0 {
+            let smallest_absolute_pin_containing_from_square = absolute_pins_containing_from_square.fold(u64::MAX, |acc, &x| acc & x);
+            if smallest_absolute_pin_containing_from_square != 0 {
                 // TODO disallow e.p.
                     // print_bitboard(smallest_absolute_pin);
                     
-                    let pieces_along_pin_indices = bitboard_to_indices(game.get_occupied_bitboard() & smallest_absolute_pin);
+                    let pieces_along_pin_indices = bitboard_to_indices(game.get_occupied_bitboard() & smallest_absolute_pin_containing_from_square);
                     let pieces_along_pin_count = pieces_along_pin_indices.len();
                     // must contain at least king, pinning piece and one other piece (as 2 pieces implies king is in check, fewer implies not a pin which are both false)
                     if pieces_along_pin_count == 3 {
                     // pin contains ONLY the king, pinning piece and one blocker
                         // if piece is absolutely pinned:
-                        if onebit_index_to_bit(possible_move.to_square) & smallest_absolute_pin != 0 {
+                        if onebit_index_to_bit(possible_move.to_square) & smallest_absolute_pin_containing_from_square != 0 {
                             // piece can move along pin (including taking pinning piece )
                             new_possible_moves.push(possible_move);
                         }
@@ -219,12 +219,17 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
         } else {
             // king is in check and piece to move is not king:
             // allow moves to pin containing only king and no other friendly pieces (the checking pin) _from unpinned pieces_!
-            if let Some(absolute_pin) = absolute_pins_bitboards.iter().find(|&b| b & game.get_friendly_piece_bitboard() == king_bit && onebit_index_to_bit(possible_move.to_square) & b != 0 ) {
-                // as long as the piece isn't in another pin:
-                if onebit_index_to_bit(possible_move.from_square) & absolute_pins_bitboards_combined == 0 {
-                    new_possible_moves.push(possible_move);
+            //absolute pins are checking iff they contain exactly two pieces (king and pinning piece)
+            let mut checking_absolute_pins = absolute_pins_bitboards.iter().filter(|&b| bitboard_to_indices(game.get_occupied_bitboard() & b).len() == 2);
+            if let Some(&singular_pin) = checking_absolute_pins.next() {
+                if checking_absolute_pins.next().is_none() {
+                    // Only one element was found
+                    if onebit_index_to_bit(possible_move.to_square) & singular_pin != 0 {
+                        new_possible_moves.push(possible_move);
+                    }
                 }
             }
+            // if double check only king moves are possible
         }
     }
 
@@ -618,7 +623,7 @@ fn perft_func(depth: u32, game: &mut Game) -> u32 {
         let nodes: u32 = perft_func(depth - 1, game);
         // let depth_to_print = 2;
         // if depth == depth_to_print {
-            // println!("{:?}{:?}: {}", onebit_index_to_coords(n_move.from_square), onebit_index_to_coords(n_move.to_square), nodes);
+        //     println!("{:?}{:?}: {}", onebit_index_to_coords(n_move.from_square).to_string(), onebit_index_to_coords(n_move.to_square).to_string(), nodes);
         // }
         total += nodes;
         unmake_move(game, move_to_unmake);
