@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use crate::game::{Game};
 use crate::moves::{calculate_sliding_attacked_squares_including_own, calculate_sliding_attacked_squares_excluding_own, Move};
+use crate::onebit_index_to_bit;
 use crate::utils::{bitboard_to_indices};
 
 
@@ -26,9 +27,9 @@ pub fn generate_bishop_attacked_squares_including_own(from_square: usize, game: 
     attacked_squares
 }
 
-pub fn generate_bishop_absolute_pins(from_square: usize, game: &Game, king_bit: u64) -> u64 {
-    let mut attacked_squares = 0u64;
-    // Ignore non-king friendly pieces from the occupied squares to generate pins
+pub fn generate_bishop_absolute_pins(from_square: usize, game: &Game, king_bit: u64) -> Vec<u64> {
+    let mut absolute_pins = vec![];
+    // Ignore non-king pieces from the occupied squares to generate pins
     let occupied = king_bit;
     for (direction, attack_masks) in BISHOP_ATTACK_MASKS.iter().enumerate() {
         let moves_in_direction = calculate_sliding_attacked_squares_including_own(
@@ -38,11 +39,12 @@ pub fn generate_bishop_absolute_pins(from_square: usize, game: &Game, king_bit: 
         );
 
         if moves_in_direction & king_bit != 0 {
-            attacked_squares |= moves_in_direction;
+            // include pinning piece so taking it is a valid move to solve the pin
+            absolute_pins.push(moves_in_direction | onebit_index_to_bit(from_square));
         }
     }
 
-    attacked_squares
+    absolute_pins
 }
 
 pub fn generate_bishop_attacked_squares_excluding_own(from_square: usize, game: &Game) -> u64 {
