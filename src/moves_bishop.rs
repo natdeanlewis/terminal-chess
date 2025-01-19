@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use crate::game::{Game};
 use crate::moves::{calculate_sliding_attacked_squares_including_own, calculate_sliding_attacked_squares_excluding_own, Move};
-use crate::{bit_to_onebit_index, onebit_index_to_bit, print_bitboard};
+use crate::{bit_to_onebit_index};
 use crate::utils::{bitboard_to_indices};
 
 
@@ -9,7 +9,7 @@ lazy_static! {
     static ref BISHOP_ATTACK_MASKS: [[u64; 64]; 4] = precompute_bishop_attack_masks();
 }
 
-pub fn generate_bishop_attacked_squares_including_own(from_square: usize, game: &Game, occupied: u64) -> u64 {
+pub fn generate_bishop_attacked_squares_including_own(from_square: usize, occupied: u64) -> u64 {
     let mut attacked_squares = 0u64;
     for (direction, attack_masks) in BISHOP_ATTACK_MASKS.iter().enumerate() {
         let moves_in_direction = calculate_sliding_attacked_squares_including_own(
@@ -42,7 +42,6 @@ pub fn generate_bishop_pinned_ray(pinned_piece_bit: u64, game: &Game, king_bit: 
 }
 
 pub fn generate_bishop_pinned_piece(from_square: usize, game: &Game, king_bit: u64) -> u64 {
-    // Only ignore enemy pieces from the occupied squares to generate pins
     let occupied = game.get_occupied_bitboard();
     for (direction, attack_masks) in BISHOP_ATTACK_MASKS.iter().enumerate() {
         // get attacks from bishop

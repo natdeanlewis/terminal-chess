@@ -85,7 +85,7 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
                     attacked_squares |= generate_knight_attacked_squares_including_own(from_square);
                 },
                 PieceType::Bishop => {
-                    attacked_squares |= generate_bishop_attacked_squares_including_own(from_square, game, occupied_excluding_king);
+                    attacked_squares |= generate_bishop_attacked_squares_including_own(from_square, occupied_excluding_king);
                 },
                 PieceType::Rook => {
                     attacked_squares |= generate_rook_attacked_squares_including_own(from_square, game, occupied_excluding_king);
@@ -129,7 +129,7 @@ pub fn pieces_giving_check_bitboard(game: &Game, opponent_colour: Colour) -> u64
                     }
                 },
                 PieceType::Bishop => {
-                    let bishop_attacks = generate_bishop_attacked_squares_including_own(from_square, game, occupied);
+                    let bishop_attacks = generate_bishop_attacked_squares_including_own(from_square, occupied);
                     if bishop_attacks & king_bit != 0 {
                         pieces_giving_check |= piece.bit;
                     }
@@ -249,7 +249,7 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     let pieces_giving_check = pieces_giving_check_bitboard(game, opponent_colour);
     let num_pieces_giving_check = bitboard_to_indices(pieces_giving_check).len();
     let pinned_pieces_bitboard = pinned_pieces_bitboard(game, opponent_colour);
-    //TODO push all legal king moves here first for efficiency?
+    // TODO push all legal king moves here first for efficiency?
     // consider fewer pieces for moves to pins? On a diagonal ray: bishops, queens, and pawns (captures only).
     // On a non-diagonal ray: rooks, queens, and pawns (pushes only).
 
@@ -308,9 +308,7 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
             } else if onebit_index_to_bit(possible_move.to_square) & push_mask != 0 {
                 new_possible_moves.push(possible_move);     
             }
-
         }
-    
     }
     new_possible_moves
 }

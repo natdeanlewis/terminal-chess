@@ -1,11 +1,11 @@
 use crate::game::{Game};
-use crate::moves::{self, calculate_sliding_attacked_squares_excluding_own, calculate_sliding_attacked_squares_including_own, Move};
-use crate::{bit_to_onebit_index, onebit_index_to_bit, print_bitboard};
+use crate::moves::{calculate_sliding_attacked_squares_excluding_own, calculate_sliding_attacked_squares_including_own, Move};
+use crate::{bit_to_onebit_index};
 use crate::utils::{bitboard_to_indices};
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref ROOK_ATTACK_MASKS: [[u64; 64]; 4] = precompute_rook_attack_masks();
+    pub static ref ROOK_ATTACK_MASKS: [[u64; 64]; 4] = precompute_rook_attack_masks();
 }
 
 pub fn generate_rook_attacked_squares_including_own(from_square: usize, game: &Game, occupied: u64) -> u64 {
@@ -41,7 +41,21 @@ pub fn generate_rook_pinned_ray(pinned_piece_bit: u64, game: &Game, king_bit: u6
 }
 
 pub fn generate_rook_pinned_piece(from_square: usize, game: &Game, king_bit: u64) -> u64 {
+    // // remove en passant pawn from occupied bitboard so en passant discovered checks are avoided
+    // let mut occupied = game.get_occupied_bitboard();
+    
+    // if let Some(en_passant_bit) = game.en_passant {
+    //     let en_passant_pawn_bit: u64;
+    //     match game.active_colour {
+    //         Colour::White => en_passant_pawn_bit = en_passant_bit >> 8,
+    //         Colour::Black => en_passant_pawn_bit = en_passant_bit << 8,
+    //     };
+    //     occupied &= !en_passant_pawn_bit;
+    //     print_bitboard(occupied);
+    // }
+    
     let occupied = game.get_occupied_bitboard();
+
     for (direction, attack_masks) in ROOK_ATTACK_MASKS.iter().enumerate() {
         // get attacks from rook
         let moves_in_direction = calculate_sliding_attacked_squares_including_own(

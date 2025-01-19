@@ -1,6 +1,7 @@
 use crate::game::{Colour, Game, PieceType};
 use crate::game::Colour::White;
-use crate::moves::Move;
+use crate::moves::{calculate_sliding_attacked_squares_including_own, Move};
+use crate::moves_rook::{ROOK_ATTACK_MASKS};
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 
 pub fn generate_pawn_attacked_squares_including_own(from_square: usize, colour: Colour) -> u64 {
@@ -115,35 +116,89 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
             }
         }
 
-        //en passant
+        // En passant
         match game.en_passant {
             Some(en_passant) => {
                 let en_passant_onebit_index = bit_to_onebit_index(en_passant);
                 // Left diagonal
                 if from_square % 8 > 0 {
                     let left_diagonal_target_square = from_square as isize + increment - 1;
+                    let occupied_without_pawns = game.get_occupied_bitboard() & !(onebit_index_to_bit(from_square - 1) | onebit_index_to_bit(from_square));
 
                     if left_diagonal_target_square == en_passant_onebit_index as isize {
-                        pawn_moves.push(Move {
-                            from_square: from_square,
-                            to_square: en_passant_onebit_index,
-                            promotion: None,
-                            capture_square: Some(from_square - 1),
-                        });
+                        // make sure doesn't leave king in check
+                        if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+                            let king_square = bit_to_onebit_index(king.bit);
+                            let horizontal_moves;
+                            if king_square < from_square {
+                                // king is left of en passant pawns
+                                horizontal_moves = calculate_sliding_attacked_squares_including_own(
+                                    ROOK_ATTACK_MASKS[1][king_square],
+                                    occupied_without_pawns,
+                                    1,
+                                );
+                            } else {
+                                // king is right of en passant pawns
+                                horizontal_moves = calculate_sliding_attacked_squares_including_own(
+                                    ROOK_ATTACK_MASKS[3][king_square],
+                                    occupied_without_pawns,
+                                    3,
+                                );
+                            }
+                            let horizontal_moves_without_pawns_or_king = horizontal_moves & occupied_without_pawns & !king.bit;
+                            if game.pieces.iter().all(|p|
+                                p.bit & horizontal_moves_without_pawns_or_king == 0 || ![PieceType::Queen, PieceType::Rook].contains(&p.piece_type)
+                            ) {
+                                pawn_moves.push(Move {
+                                    from_square: from_square,
+                                    to_square: en_passant_onebit_index,
+                                    promotion: None,
+                                    capture_square: Some(from_square - 1),
+                                });        
+                            }
+                        }
                     }
                 }
 
                 // Right diagonal
                 if from_square % 8 < 7 {
                     let right_diagonal_target_square = from_square as isize + increment + 1;
+                    let occupied_without_pawns = game.get_occupied_bitboard() & !(onebit_index_to_bit(from_square + 1) | onebit_index_to_bit(from_square));
 
                     if right_diagonal_target_square == en_passant_onebit_index as isize {
-                        pawn_moves.push(Move {
-                            from_square: from_square,
-                            to_square: en_passant_onebit_index,
-                            promotion: None,
-                            capture_square: Some(from_square + 1),
-                        })
+                        if right_diagonal_target_square == en_passant_onebit_index as isize {
+                            // make sure doesn't leave king in check
+                            if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+                                let king_square = bit_to_onebit_index(king.bit);
+                                let horizontal_moves;
+                                if king_square < from_square {
+                                    // king is left of en passant pawns
+                                    horizontal_moves = calculate_sliding_attacked_squares_including_own(
+                                        ROOK_ATTACK_MASKS[1][king_square],
+                                        occupied_without_pawns,
+                                        1,
+                                    );
+                                } else {
+                                    // king is right of en passant pawns
+                                    horizontal_moves = calculate_sliding_attacked_squares_including_own(
+                                        ROOK_ATTACK_MASKS[3][king_square],
+                                        occupied_without_pawns,
+                                        3,
+                                    );
+                                }
+                                let horizontal_moves_without_pawns_or_king = horizontal_moves & occupied_without_pawns & !king.bit;
+                                if game.pieces.iter().all(|p|
+                                    p.bit & horizontal_moves_without_pawns_or_king == 0 || ![PieceType::Queen, PieceType::Rook].contains(&p.piece_type)
+                                ) {
+                                    pawn_moves.push(Move {
+                                        from_square: from_square,
+                                        to_square: en_passant_onebit_index,
+                                        promotion: None,
+                                        capture_square: Some(from_square + 1),
+                                    });        
+                                }
+                            }
+                        }
                     }
                 }
             }
