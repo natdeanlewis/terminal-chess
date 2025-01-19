@@ -32,6 +32,9 @@ pub static _PERFT_6_FEN_STR: &str = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP
 pub static _CHECK_OPTIMISATION_FEN_STR: &str = "r3k3/1p3p2/p2q2p1/bn3P2/1N2PQP1/1B6/3K1R1r/3R4 w q - 0 1";
 pub static _LEGAL_TEST_FEN_STR: &str = "8/4k3/8/8/4R3/8/8/4K3 b - - 0 1";
 pub static _LEGAL_TEST_2_FEN_STR: &str = "4k3/6N1/5b2/4R3/8/8/8/4K2R b - - 0 1";
+pub static _LEGAL_TEST_3_FEN_STR: &str = "4k3/8/6n1/4R3/8/8/8/4K2R b - - 0 1";
+pub static _LEGAL_TEST_4_FEN_STR: &str = "8/8/8/2k5/3Pp3/8/8/4K3 b - d3 0 1";
+pub static _LEGAL_TEST_5_FEN_STR: &str = "8/8/8/1k6/3Pp3/8/8/4KQ2 b - d3 0 1";
 
 pub fn get_players_loop() -> i8 {
     loop {

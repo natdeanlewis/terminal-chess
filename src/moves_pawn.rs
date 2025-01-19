@@ -66,6 +66,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                 from_square: from_square,
                 to_square: target_square as usize,
                 promotion: None,
+                capture_square: None,
             });
 
             // Two squares forward
@@ -77,6 +78,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                         from_square: from_square,
                         to_square: target_square as usize,
                         promotion: None,
+                        capture_square: None,
                     })
                 }
             }
@@ -93,6 +95,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                     from_square: from_square,
                     to_square: left_diagonal_target_square as usize,
                     promotion: None,
+                    capture_square: Some(left_diagonal_target_square as usize),
                 });
             }
         }
@@ -107,6 +110,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                     from_square: from_square,
                     to_square: right_diagonal_target_square as usize,
                     promotion: None,
+                    capture_square: Some(right_diagonal_target_square as usize),
                 });
             }
         }
@@ -124,19 +128,21 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                             from_square: from_square,
                             to_square: en_passant_onebit_index,
                             promotion: None,
-                        })
+                            capture_square: Some(from_square - 1),
+                        });
                     }
                 }
 
                 // Right diagonal
                 if from_square % 8 < 7 {
-                    let left_diagonal_target_square = from_square as isize + increment + 1;
+                    let right_diagonal_target_square = from_square as isize + increment + 1;
 
-                    if left_diagonal_target_square == en_passant_onebit_index as isize {
+                    if right_diagonal_target_square == en_passant_onebit_index as isize {
                         pawn_moves.push(Move {
                             from_square: from_square,
                             to_square: en_passant_onebit_index,
                             promotion: None,
+                            capture_square: Some(from_square + 1),
                         })
                     }
                 }
@@ -151,6 +157,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                         from_square: pawn_move.from_square,
                         to_square: pawn_move.to_square,
                         promotion: Some(*promotion_piece),
+                        capture_square: pawn_move.capture_square,
                     })
                 }
             } else {

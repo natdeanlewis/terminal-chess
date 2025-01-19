@@ -1,18 +1,19 @@
-use crate::moves_bishop::{generate_bishop_absolute_pins, generate_bishop_attacked_squares_including_own, generate_bishop_moves};
+use crate::moves_bishop::{generate_bishop_absolute_pin, generate_bishop_attacked_squares_including_own, generate_bishop_moves};
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
 use crate::Colour;
 use crate::moves_king::{add_castle_moves, generate_king_attacked_squares_including_own, generate_legal_king_moves};
 use crate::moves_knight::{generate_knight_attacked_squares_including_own, generate_knight_moves};
 use crate::moves_pawn::{generate_pawn_attacked_squares_including_own, generate_pawn_moves};
-use crate::moves_queen::{generate_queen_absolute_pins, generate_queen_attacked_squares_including_own, generate_queen_moves};
-use crate::moves_rook::{generate_rook_absolute_pins, generate_rook_attacked_squares_including_own, generate_rook_moves};
+use crate::moves_queen::{generate_queen_absolute_pin, generate_queen_attacked_squares_including_own, generate_queen_moves};
+use crate::moves_rook::{generate_rook_absolute_pin, generate_rook_attacked_squares_including_own, generate_rook_moves};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Move {
     pub(crate) from_square: usize,
     pub(crate) to_square: usize,
     pub promotion: Option<PieceType>,
+    pub capture_square: Option<usize>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -152,7 +153,7 @@ pub fn pieces_giving_check_bitboard(game: &Game, opponent_colour: Colour) -> u64
             }
         }
     }
-    print_bitboard(pieces_giving_check);
+    // print_bitboard(pieces_giving_check);
     pieces_giving_check
 }
 
@@ -168,13 +169,21 @@ pub fn absolute_pins_bitboards(game: &Game, opponent_colour: Colour) -> Vec<u64>
             let from_square = bit_to_onebit_index(piece.bit);
             match piece.piece_type {
                 PieceType::Bishop => {
-                    absolute_pins.extend(generate_bishop_absolute_pins(from_square, game, king_bit));
+                    let bishop_absolute_pin = generate_bishop_absolute_pin(from_square, game, king_bit);
+                    if bishop_absolute_pin != 0 {
+                        absolute_pins.push(bishop_absolute_pin);
+                    }
                 },
                 PieceType::Rook => {
-                    absolute_pins.extend(generate_rook_absolute_pins(from_square, game, king_bit));
-                },
+                    let rook_absolute_pin = generate_rook_absolute_pin(from_square, game, king_bit);
+                    if rook_absolute_pin != 0 {
+                        absolute_pins.push(rook_absolute_pin);
+                    }                },
                 PieceType::Queen =>  {
-                    absolute_pins.extend(generate_queen_absolute_pins(from_square, game, king_bit));
+                    let queen_absolute_pin = generate_queen_absolute_pin(from_square, game, king_bit);
+                    if queen_absolute_pin != 0 {
+                        absolute_pins.push(queen_absolute_pin);
+                    }                
                 },
                 _ => ()
             }
@@ -225,23 +234,52 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     let squares_attacked_by_opponent_bitboard = squares_attacked_by_opponent_bitboard(game, opponent_colour);
     let absolute_pins_bitboards = absolute_pins_bitboards(game, opponent_colour);
     let pieces_giving_check = pieces_giving_check_bitboard(game, opponent_colour);
+    let num_pieces_giving_check = bitboard_to_indices(pieces_giving_check).len();
+
+    //TODO push all legal king moves here first for efficiency
     for possible_move in possible_moves {
+        let mut capture_mask = u64::MAX;
+        let mut push_mask    = u64::MAX;
+
         if possible_move.from_square == king_square {
             // 1: king moves (handled by king move gen)
             new_possible_moves.push(possible_move);
         } else if pieces_giving_check != 0 {
-            let num_pieces_giving_check = bitboard_to_indices(pieces_giving_check).len();
-
+            // in check
             if num_pieces_giving_check > 1 {
+                //double check
                 continue // only king moves valid if double check
+            } else {
+                // single check and piece to move is not king
+                capture_mask = pieces_giving_check;
+                if let Some(checking_piece) = game.pieces.iter().find(|p| p.bit == pieces_giving_check && !p.taken) {
+                    match checking_piece.piece_type {
+                        // If the piece giving check is a slider, we can evade check by blocking it
+                        PieceType::Bishop => {
+                            push_mask = generate_bishop_absolute_pin(bit_to_onebit_index(checking_piece.bit), game, king_bit)
+                        },
+                        PieceType::Rook => {
+                            push_mask = generate_rook_absolute_pin(bit_to_onebit_index(checking_piece.bit), game, king_bit)
+                        },
+                        PieceType::Queen => {
+                            push_mask = generate_queen_absolute_pin(bit_to_onebit_index(checking_piece.bit), game, king_bit)
+                        },
+                        // if the piece is not a slider, we can only evade check by capturing
+                        _ => { push_mask = 0u64 }
+                    }
+                }
+                if let Some(capture_square) = possible_move.capture_square {
+                    println!("here");
+                    if onebit_index_to_bit(capture_square) & capture_mask != 0 ||
+                    onebit_index_to_bit(possible_move.to_square) & push_mask != 0 {
+                        new_possible_moves.push(possible_move);
+                    }
+                } else if onebit_index_to_bit(possible_move.to_square) & push_mask != 0 {
+                    new_possible_moves.push(possible_move);     
+                }
             }
-
-            // king is in check and piece to move is not king:
-            new_possible_moves.push(possible_move);
-            // if double check only king moves are possible
         }
     }
-
     new_possible_moves
 }
 

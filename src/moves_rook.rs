@@ -23,8 +23,7 @@ pub fn generate_rook_attacked_squares_including_own(from_square: usize, game: &G
     attacked_squares
 }
 
-pub fn generate_rook_absolute_pins(from_square: usize, game: &Game, king_bit: u64) -> Vec<u64> {
-    let mut absolute_pins = vec![];
+pub fn generate_rook_absolute_pin(from_square: usize, game: &Game, king_bit: u64) -> u64 {
     // Ignore non-king pieces from the occupied squares to generate pins
     let occupied = king_bit;
     for (direction, attack_masks) in ROOK_ATTACK_MASKS.iter().enumerate() {
@@ -36,11 +35,10 @@ pub fn generate_rook_absolute_pins(from_square: usize, game: &Game, king_bit: u6
 
         if moves_in_direction & king_bit != 0 {
             // include pinning piece so taking it is a valid move to solve the pin
-            absolute_pins.push(moves_in_direction | onebit_index_to_bit(from_square));
+            return moves_in_direction | onebit_index_to_bit(from_square);
         }
     }
-
-    absolute_pins
+    return 0u64
 }
 
 
@@ -73,6 +71,7 @@ pub fn generate_rook_moves(from_square: usize, game: &Game) -> Vec<Move> {
             from_square,
             to_square: target_square,
             promotion: None,
+            capture_square: Some(target_square),
         });
     }
 

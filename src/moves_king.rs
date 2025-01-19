@@ -25,6 +25,7 @@ pub fn generate_legal_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
             from_square: from_square,
             to_square: target_square,
             promotion: None,
+            capture_square: Some(target_square),
         });
     }
     possible_moves
@@ -88,6 +89,7 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
                     from_square: from_square,
                     to_square: from_square + 2,
                     promotion: None,
+                    capture_square: None,
                 });
             }
         }
@@ -97,6 +99,7 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
                     from_square: from_square,
                     to_square: from_square - 2,
                     promotion: None,
+                    capture_square: None,
                 });
             }
         }
@@ -107,6 +110,7 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
                     from_square: from_square,
                     to_square: from_square + 2,
                     promotion: None,
+                    capture_square: None,
                 });
             }        }
         if game.castling_rights.contains(CastlingRights::BLACKQUEENSIDE) {
@@ -115,6 +119,7 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
                     from_square: from_square,
                     to_square: from_square - 2,
                     promotion: None,
+                    capture_square: None,
                 });
             }
         }
