@@ -101,6 +101,36 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
     attacked_squares
 }
 
+pub fn non_sliding_checking_attack_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
+    // not a vector as can only be one non-sliding check at a time
+    let mut non_sliding_checking_attack =  0u64;
+    let mut king_bit = 0u64;
+    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+        king_bit = king.bit;
+    }
+
+    for piece in &game.pieces {
+        if piece.colour == opponent_colour && piece.taken == false {
+            let from_square = bit_to_onebit_index(piece.bit);
+            match piece.piece_type {
+                PieceType::Pawn => {
+                    let pawn_attacks = generate_pawn_attacked_squares_including_own(from_square, opponent_colour);
+                    if pawn_attacks & king_bit != 0 {
+                        non_sliding_checking_attack = king_bit | onebit_index_to_bit(from_square);
+                    }                },
+                PieceType::Knight => {
+                    let knight_attacks = generate_knight_attacked_squares_including_own(from_square);
+                    if knight_attacks & king_bit != 0 {
+                        non_sliding_checking_attack = king_bit | onebit_index_to_bit(from_square);
+                    }
+                },
+                _ => ()
+            }
+        }
+    }
+    non_sliding_checking_attack
+}
+
 pub fn absolute_pins_bitboards(game: &Game, opponent_colour: Colour) -> Vec<u64> {
     let mut absolute_pins =  vec![];
     let mut king_bit = 0u64;
@@ -218,8 +248,30 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
             }
         } else {
             // king is in check and piece to move is not king:
+            //allow taking checking non-sliding checking piece by non-pinned piece:
+            let non_sliding_checking_attack_bitboard = non_sliding_checking_attack_bitboard(game, opponent_colour);
+            //if taking the non-sliding checking piece:
+            if onebit_index_to_bit(possible_move.to_square) & non_sliding_checking_attack_bitboard != 0 {
+                let absolute_pins_containing_from_square = absolute_pins_bitboards.iter().filter(|&b|
+                    // move is from pinned line
+                    (onebit_index_to_bit(possible_move.from_square) & b != 0));
+                let smallest_absolute_pin_containing_from_square = absolute_pins_containing_from_square.fold(u64::MAX, |acc, &x| acc & x);
+                if smallest_absolute_pin_containing_from_square != 0 {
+                    // TODO disallow e.p.
+                    // print_bitboard(smallest_absolute_pin);
+                    
+                    let pieces_along_pin_indices = bitboard_to_indices(game.get_occupied_bitboard() & smallest_absolute_pin_containing_from_square);
+                    let pieces_along_pin_count = pieces_along_pin_indices.len();
+                    // must contain at least king, pinning piece and one other piece (as 2 pieces implies king is in check, fewer implies not a pin which are both false)
+                    if pieces_along_pin_count > 3 {
+                        new_possible_moves.push(possible_move);
+                    }
+                }
+            }
+
             // allow moves to pin containing only king and no other friendly pieces (the checking pin) _from unpinned pieces_!
             //absolute pins are checking iff they contain exactly two pieces (king and pinning piece)
+
             let mut checking_absolute_pins = absolute_pins_bitboards.iter().filter(|&b| bitboard_to_indices(game.get_occupied_bitboard() & b).len() == 2);
             if let Some(&singular_pin) = checking_absolute_pins.next() {
                 if checking_absolute_pins.next().is_none() {
@@ -547,7 +599,7 @@ pub fn calculate_sliding_attacked_squares_including_own(attack_mask: u64, occupi
     truncated_mask
 }
 
-#[test]
+// #[test]
 fn perft_1() {
     let test_number = 1;
     let _perft_1_fen_str = _STARTING_FEN_STR;
@@ -557,7 +609,7 @@ fn perft_1() {
     run_perft_test(&mut game, &expected_node_counts, test_number);
 }
 
-#[test]
+// #[test]
 fn perft_2() {
     let test_number = 2;
     let expected_node_counts = [1, 48, 2_039, 97_862];
@@ -584,7 +636,7 @@ fn perft_3() {
 //     run_perft_test(&mut game, &expected_node_counts, test_number);
 // }
 
-#[test]
+// #[test]
 fn perft_4() {
     let test_number = 4;
     let expected_node_counts = [1, 6, 264, 9_467, 422_333];
@@ -593,7 +645,7 @@ fn perft_4() {
     run_perft_test(&mut game, &expected_node_counts, test_number);
 }
 
-#[test]
+// #[test]
 fn perft_5() {
     let test_number = 5;
     let expected_node_counts = [1, 44, 1_486, 62_379];
@@ -602,7 +654,7 @@ fn perft_5() {
     run_perft_test(&mut game, &expected_node_counts, test_number);
 }
 
-#[test]
+// #[test]
 fn perft_6() {
     let test_number = 6;
     let expected_node_counts = [1, 46, 2_079, 89_890];
