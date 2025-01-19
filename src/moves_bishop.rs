@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use crate::game::{Game};
 use crate::moves::{calculate_sliding_attacked_squares_including_own, calculate_sliding_attacked_squares_excluding_own, Move};
-use crate::onebit_index_to_bit;
+use crate::{bit_to_onebit_index, onebit_index_to_bit};
 use crate::utils::{bitboard_to_indices};
 
 
@@ -24,19 +24,30 @@ pub fn generate_bishop_attacked_squares_including_own(from_square: usize, game: 
     attacked_squares
 }
 
-pub fn generate_bishop_absolute_pin(from_square: usize, game: &Game, king_bit: u64) -> u64 {
-    // Ignore non-king pieces from the occupied squares to generate pins
-    let occupied = king_bit;
+pub fn generate_bishop_pinned_piece(from_square: usize, game: &Game, king_bit: u64) -> u64 {
+    // Only ignore enemy pieces from the occupied squares to generate pins
+    let occupied = game.get_occupied_bitboard();
     for (direction, attack_masks) in BISHOP_ATTACK_MASKS.iter().enumerate() {
+        // get attacks from rook
         let moves_in_direction = calculate_sliding_attacked_squares_including_own(
             attack_masks[from_square],
             occupied,
             direction,
         );
 
-        if moves_in_direction & king_bit != 0 {
-            // include pinning piece so taking it is a valid move to solve the pin
-            return moves_in_direction | onebit_index_to_bit(from_square);
+        // get opposite direction rook attacks from king
+        // 0 <-> 2 1 <-> 3
+        let opposite_direction = (direction + 2) % 4;
+        let opposite_direction_attack_mask = BISHOP_ATTACK_MASKS[opposite_direction][bit_to_onebit_index(king_bit)];
+        let moves_in_opposite_direction = calculate_sliding_attacked_squares_including_own(
+            opposite_direction_attack_mask,
+            occupied,
+            opposite_direction,
+        );
+
+        let overlap = moves_in_direction & moves_in_opposite_direction;
+        if overlap != 0 {
+            return overlap
         }
     }
     return 0u64

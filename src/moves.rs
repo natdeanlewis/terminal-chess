@@ -1,12 +1,12 @@
-use crate::moves_bishop::{generate_bishop_absolute_pin, generate_bishop_attacked_squares_including_own, generate_bishop_moves};
+use crate::moves_bishop::{generate_bishop_pinned_piece, generate_bishop_attacked_squares_including_own, generate_bishop_moves};
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
 use crate::Colour;
 use crate::moves_king::{add_castle_moves, generate_king_attacked_squares_including_own, generate_legal_king_moves};
 use crate::moves_knight::{generate_knight_attacked_squares_including_own, generate_knight_moves};
 use crate::moves_pawn::{generate_pawn_attacked_squares_including_own, generate_pawn_moves};
-use crate::moves_queen::{generate_queen_absolute_pin, generate_queen_attacked_squares_including_own, generate_queen_moves};
-use crate::moves_rook::{generate_rook_absolute_pin, generate_rook_attacked_squares_including_own, generate_rook_moves};
+use crate::moves_queen::{generate_queen_pinned_piece, generate_queen_attacked_squares_including_own, generate_queen_moves};
+use crate::moves_rook::{generate_rook_pinned_piece, generate_rook_attacked_squares_including_own, generate_rook_moves};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Move {
@@ -157,8 +157,8 @@ pub fn pieces_giving_check_bitboard(game: &Game, opponent_colour: Colour) -> u64
     pieces_giving_check
 }
 
-pub fn absolute_pins_bitboards(game: &Game, opponent_colour: Colour) -> Vec<u64> {
-    let mut absolute_pins =  vec![];
+pub fn pinned_pieces_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
+    let mut pinned_pieces_bitboard =  0u64;
     let mut king_bit = 0u64;
     if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
         king_bit = king.bit;
@@ -169,31 +169,20 @@ pub fn absolute_pins_bitboards(game: &Game, opponent_colour: Colour) -> Vec<u64>
             let from_square = bit_to_onebit_index(piece.bit);
             match piece.piece_type {
                 PieceType::Bishop => {
-                    let bishop_absolute_pin = generate_bishop_absolute_pin(from_square, game, king_bit);
-                    if bishop_absolute_pin != 0 {
-                        absolute_pins.push(bishop_absolute_pin);
-                    }
+                    pinned_pieces_bitboard |= generate_bishop_pinned_piece(from_square, game, king_bit);
                 },
                 PieceType::Rook => {
-                    let rook_absolute_pin = generate_rook_absolute_pin(from_square, game, king_bit);
-                    if rook_absolute_pin != 0 {
-                        absolute_pins.push(rook_absolute_pin);
-                    }                },
+                    pinned_pieces_bitboard |= generate_rook_pinned_piece(from_square, game, king_bit);
+                },
                 PieceType::Queen =>  {
-                    let queen_absolute_pin = generate_queen_absolute_pin(from_square, game, king_bit);
-                    if queen_absolute_pin != 0 {
-                        absolute_pins.push(queen_absolute_pin);
-                    }                
+                    pinned_pieces_bitboard |= generate_queen_pinned_piece(from_square, game, king_bit);
                 },
                 _ => ()
             }
         }
     }
 
-    // println!("Attacked squares by : {:?}", opponent_colour);
-    // print_board(game);
-    // print_bitboard(attacked_squares);
-    absolute_pins
+    pinned_pieces_bitboard
 }
 
 fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
@@ -231,8 +220,8 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
         Colour::White => Colour::Black,
         Colour::Black => Colour::White,
     };
-    let squares_attacked_by_opponent_bitboard = squares_attacked_by_opponent_bitboard(game, opponent_colour);
-    let absolute_pins_bitboards = absolute_pins_bitboards(game, opponent_colour);
+    let pinned_pieces_bitboard = pinned_pieces_bitboard(game, opponent_colour);
+    print_bitboard(pinned_pieces_bitboard);
     let pieces_giving_check = pieces_giving_check_bitboard(game, opponent_colour);
     let num_pieces_giving_check = bitboard_to_indices(pieces_giving_check).len();
 
@@ -256,13 +245,13 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
                     match checking_piece.piece_type {
                         // If the piece giving check is a slider, we can evade check by blocking it
                         PieceType::Bishop => {
-                            push_mask = generate_bishop_absolute_pin(bit_to_onebit_index(checking_piece.bit), game, king_bit)
+                            push_mask = generate_bishop_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
                         },
                         PieceType::Rook => {
-                            push_mask = generate_rook_absolute_pin(bit_to_onebit_index(checking_piece.bit), game, king_bit)
+                            push_mask = generate_rook_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
                         },
                         PieceType::Queen => {
-                            push_mask = generate_queen_absolute_pin(bit_to_onebit_index(checking_piece.bit), game, king_bit)
+                            push_mask = generate_queen_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
                         },
                         // if the piece is not a slider, we can only evade check by capturing
                         _ => { push_mask = 0u64 }
