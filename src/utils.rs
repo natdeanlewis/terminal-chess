@@ -25,11 +25,13 @@ pub static _LOSING_FEN_STR: &str = "1k6/q1qq4/8/8/8/6P1/8/1K5Q w KQkq - 0 1";
 pub static _SIMPLE_FEN_STR: &str = "r3k3/8/8/8/8/8/8/R2QK3 w KQkq - 0 1";
 pub static _DRAW_FEN_STR: &str = "4kn1n/8/8/8/8/8/8/4K3 w KQkq - 0 1";
 pub static _PERFT_2_FEN_STR: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-pub static _PERFT_3_FEN_STR: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
+pub static _PERFT_3_FEN_STR: &str = "8/2p5/3p4/1P4kr/1K3R11/8/4P1P1/8 b - - 0 1";
 pub static _PERFT_4_FEN_STR: &str = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
 pub static _PERFT_5_FEN_STR: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 pub static _PERFT_6_FEN_STR: &str = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 1";
 pub static _CHECK_OPTIMISATION_FEN_STR: &str = "r3k3/1p3p2/p2q2p1/bn3P2/1N2PQP1/1B6/3K1R1r/3R4 w q - 0 1";
+pub static _LEGAL_TEST_FEN_STR: &str = "8/4k3/8/8/4R3/8/8/4K3 b - - 0 1";
+pub static _LEGAL_TEST_2_FEN_STR: &str = "4k3/6N1/5b2/4R3/8/8/8/4K2R b - - 0 1";
 
 pub fn get_players_loop() -> i8 {
     loop {

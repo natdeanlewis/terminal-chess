@@ -4,8 +4,8 @@ use crate::moves_bishop::{generate_bishop_absolute_pins, generate_bishop_attacke
 use crate::moves_rook::{generate_rook_absolute_pins, generate_rook_attacked_squares_excluding_own, generate_rook_attacked_squares_including_own};
 use crate::utils::bitboard_to_indices;
 
-pub fn generate_queen_attacked_squares_including_own(from_square: usize, game: &Game, king_bit: u64) -> u64 {
-    generate_bishop_attacked_squares_including_own(from_square, game, king_bit) | generate_rook_attacked_squares_including_own(from_square, game, king_bit)
+pub fn generate_queen_attacked_squares_including_own(from_square: usize, game: &Game, occupied: u64) -> u64 {
+    generate_bishop_attacked_squares_including_own(from_square, game, occupied) | generate_rook_attacked_squares_including_own(from_square, game, occupied)
 }
 
 pub fn generate_queen_attacked_squares_excluding_own(from_square: usize, game: &Game) -> u64 {

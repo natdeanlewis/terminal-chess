@@ -18,9 +18,9 @@ pub fn generate_legal_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
     let squares_attacked_by_opponent = squares_attacked_by_opponent_bitboard(game, opponent_colour);
 
     // Don't move the king into check
-    let valid_moves = pseudolegal_moves & !squares_attacked_by_opponent;
+    let legal_moves = pseudolegal_moves & !squares_attacked_by_opponent;
 
-    for target_square in bitboard_to_indices(valid_moves) {
+    for target_square in bitboard_to_indices(legal_moves) {
         possible_moves.push(Move {
             from_square: from_square,
             to_square: target_square,

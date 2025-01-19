@@ -9,15 +9,12 @@ lazy_static! {
     static ref BISHOP_ATTACK_MASKS: [[u64; 64]; 4] = precompute_bishop_attack_masks();
 }
 
-pub fn generate_bishop_attacked_squares_including_own(from_square: usize, game: &Game, king_bit: u64) -> u64 {
+pub fn generate_bishop_attacked_squares_including_own(from_square: usize, game: &Game, occupied: u64) -> u64 {
     let mut attacked_squares = 0u64;
-    let occupied = game.get_occupied_bitboard();
-    // Exclude king bit from occupied so king can't just move directly away from a checking sliding piece
-    let occupied_excluding_king = occupied & !king_bit;
     for (direction, attack_masks) in BISHOP_ATTACK_MASKS.iter().enumerate() {
         let moves_in_direction = calculate_sliding_attacked_squares_including_own(
             attack_masks[from_square],
-            occupied_excluding_king,
+            occupied,
             direction,
         );
 

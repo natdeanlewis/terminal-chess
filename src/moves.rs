@@ -69,6 +69,10 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
         king_bit = king.bit;
     }
 
+    let occupied = game.get_occupied_bitboard();
+    // Exclude king bit from occupied so king can't just move directly away from a checking sliding piece
+    let occupied_excluding_king = occupied & !king_bit;
+
     for piece in &game.pieces {
         if piece.colour == opponent_colour && piece.taken == false {
             let from_square = bit_to_onebit_index(piece.bit);
@@ -80,13 +84,13 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
                     attacked_squares |= generate_knight_attacked_squares_including_own(from_square);
                 },
                 PieceType::Bishop => {
-                    attacked_squares |= generate_bishop_attacked_squares_including_own(from_square, game, king_bit);
+                    attacked_squares |= generate_bishop_attacked_squares_including_own(from_square, game, occupied_excluding_king);
                 },
                 PieceType::Rook => {
-                    attacked_squares |= generate_rook_attacked_squares_including_own(from_square, game, king_bit);
+                    attacked_squares |= generate_rook_attacked_squares_including_own(from_square, game, occupied_excluding_king);
                 },
                 PieceType::Queen =>  {
-                    attacked_squares |= generate_queen_attacked_squares_including_own(from_square, game, king_bit);
+                    attacked_squares |= generate_queen_attacked_squares_including_own(from_square, game, occupied_excluding_king);
                 },
                 PieceType::King => {
                     attacked_squares |= generate_king_attacked_squares_including_own(from_square);
@@ -101,13 +105,14 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
     attacked_squares
 }
 
-pub fn non_sliding_checking_attack_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
-    // not a vector as can only be one non-sliding check at a time
-    let mut non_sliding_checking_attack =  0u64;
+
+pub fn pieces_giving_check_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
+    let mut pieces_giving_check =  0u64;
     let mut king_bit = 0u64;
     if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
         king_bit = king.bit;
     }
+    let occupied = game.get_occupied_bitboard();
 
     for piece in &game.pieces {
         if piece.colour == opponent_colour && piece.taken == false {
@@ -116,19 +121,39 @@ pub fn non_sliding_checking_attack_bitboard(game: &Game, opponent_colour: Colour
                 PieceType::Pawn => {
                     let pawn_attacks = generate_pawn_attacked_squares_including_own(from_square, opponent_colour);
                     if pawn_attacks & king_bit != 0 {
-                        non_sliding_checking_attack = king_bit | onebit_index_to_bit(from_square);
-                    }                },
+                        pieces_giving_check |= piece.bit;
+                    }                
+                },
                 PieceType::Knight => {
                     let knight_attacks = generate_knight_attacked_squares_including_own(from_square);
                     if knight_attacks & king_bit != 0 {
-                        non_sliding_checking_attack = king_bit | onebit_index_to_bit(from_square);
+                        pieces_giving_check |= piece.bit;
+                    }
+                },
+                PieceType::Bishop => {
+                    let bishop_attacks = generate_bishop_attacked_squares_including_own(from_square, game, occupied);
+                    if bishop_attacks & king_bit != 0 {
+                        pieces_giving_check |= piece.bit;
+                    }
+                },
+                PieceType::Rook => {
+                    let rook_attacks = generate_rook_attacked_squares_including_own(from_square, game, occupied);
+                    if rook_attacks & king_bit != 0 {
+                        pieces_giving_check |= piece.bit;
+                    }
+                },
+                PieceType::Queen =>  {
+                    let queen_attacks = generate_queen_attacked_squares_including_own(from_square, game, occupied);
+                    if queen_attacks & king_bit != 0 {
+                        pieces_giving_check |= piece.bit;
                     }
                 },
                 _ => ()
             }
         }
     }
-    non_sliding_checking_attack
+    print_bitboard(pieces_giving_check);
+    pieces_giving_check
 }
 
 pub fn absolute_pins_bitboards(game: &Game, opponent_colour: Colour) -> Vec<u64> {
@@ -199,90 +224,20 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     };
     let squares_attacked_by_opponent_bitboard = squares_attacked_by_opponent_bitboard(game, opponent_colour);
     let absolute_pins_bitboards = absolute_pins_bitboards(game, opponent_colour);
-    let absolute_pins_bitboards_combined = absolute_pins_bitboards.iter().fold(0, |acc, &x| acc | x);
-
-    // if king in attacked_squares: king must move out or a non-pinned piece must move to protect
+    let pieces_giving_check = pieces_giving_check_bitboard(game, opponent_colour);
     for possible_move in possible_moves {
         if possible_move.from_square == king_square {
-            // piece to move is king
+            // 1: king moves (handled by king move gen)
             new_possible_moves.push(possible_move);
-        } else if king_bit & squares_attacked_by_opponent_bitboard == 0 {
-            // king is not in check and piece to move is not king
-            // generate pin lines with king in, don't let pieces move out of them if they're the only piece in (OR if only it and en passant captured pawn)
-            // for a in &absolute_pins_bitboards {
-            //     print_bitboard(*a);
-            //     println!("{}",onebit_index_to_bit(possible_move.from_square) & *a != 0);
-            // }
-            let absolute_pins_containing_from_square = absolute_pins_bitboards.iter().filter(|&b|
-                // move is from pinned line
-                (onebit_index_to_bit(possible_move.from_square) & b != 0));
-            let smallest_absolute_pin_containing_from_square = absolute_pins_containing_from_square.fold(u64::MAX, |acc, &x| acc & x);
-            if smallest_absolute_pin_containing_from_square != 0 {
-                // TODO disallow e.p.
-                    // print_bitboard(smallest_absolute_pin);
-                    
-                    let pieces_along_pin_indices = bitboard_to_indices(game.get_occupied_bitboard() & smallest_absolute_pin_containing_from_square);
-                    let pieces_along_pin_count = pieces_along_pin_indices.len();
-                    // must contain at least king, pinning piece and one other piece (as 2 pieces implies king is in check, fewer implies not a pin which are both false)
-                    if pieces_along_pin_count == 3 {
-                    // pin contains ONLY the king, pinning piece and one blocker
-                        // if piece is absolutely pinned:
-                        if onebit_index_to_bit(possible_move.to_square) & smallest_absolute_pin_containing_from_square != 0 {
-                            // piece can move along pin (including taking pinning piece )
-                            new_possible_moves.push(possible_move);
-                        }
-                    } else if pieces_along_pin_count == 4 {
-                        // TODO: reject pawn moves to the game's en passant square
-                        if let Some(pawn) = game.pieces.iter().find(|&p| p.piece_type == PieceType::Pawn && !p.taken && bit_to_onebit_index(p.bit) == possible_move.from_square) {
-                            if Some(onebit_index_to_bit(possible_move.to_square)) != game.en_passant {
-                                new_possible_moves.push(possible_move);
-                            }
-                        } else {
-                            new_possible_moves.push(possible_move);
-                        }
-                    } else {
-                        new_possible_moves.push(possible_move);
-                    }
-            } else {
-                new_possible_moves.push(possible_move);
+        } else if pieces_giving_check != 0 {
+            let num_pieces_giving_check = bitboard_to_indices(pieces_giving_check).len();
+
+            if num_pieces_giving_check > 1 {
+                continue // only king moves valid if double check
             }
-        } else {
+
             // king is in check and piece to move is not king:
-            //allow taking checking non-sliding checking piece by non-pinned piece:
-            let non_sliding_checking_attack_bitboard = non_sliding_checking_attack_bitboard(game, opponent_colour);
-            //if taking the non-sliding checking piece:
-            if onebit_index_to_bit(possible_move.to_square) & non_sliding_checking_attack_bitboard != 0 {
-                let absolute_pins_containing_from_square = absolute_pins_bitboards.iter().filter(|&b|
-                    // move is from pinned line
-                    (onebit_index_to_bit(possible_move.from_square) & b != 0));
-                let smallest_absolute_pin_containing_from_square = absolute_pins_containing_from_square.fold(u64::MAX, |acc, &x| acc & x);
-                if smallest_absolute_pin_containing_from_square != 0 {
-                    // TODO disallow e.p.
-                    // print_bitboard(smallest_absolute_pin);
-                    
-                    let pieces_along_pin_indices = bitboard_to_indices(game.get_occupied_bitboard() & smallest_absolute_pin_containing_from_square);
-                    let pieces_along_pin_count = pieces_along_pin_indices.len();
-                    // must contain at least king, pinning piece and one other piece (as 2 pieces implies king is in check, fewer implies not a pin which are both false)
-                    if pieces_along_pin_count > 3 {
-                        new_possible_moves.push(possible_move);
-                    }
-                } else {
-                    new_possible_moves.push(possible_move);
-                }
-            }
-
-            // allow moves to pin containing only king and no other friendly pieces (the checking pin) _from unpinned pieces_!
-            //absolute pins are checking iff they contain exactly two pieces (king and pinning piece)
-
-            let mut checking_absolute_pins = absolute_pins_bitboards.iter().filter(|&b| bitboard_to_indices(game.get_occupied_bitboard() & b).len() == 2);
-            if let Some(&singular_pin) = checking_absolute_pins.next() {
-                if checking_absolute_pins.next().is_none() {
-                    // Only one element was found
-                    if onebit_index_to_bit(possible_move.to_square) & singular_pin != 0 {
-                        new_possible_moves.push(possible_move);
-                    }
-                }
-            }
+            new_possible_moves.push(possible_move);
             // if double check only king moves are possible
         }
     }
@@ -623,7 +578,7 @@ fn perft_2() {
 #[test]
 fn perft_3() {
     let test_number = 3;
-    let expected_node_counts = [1, 14, 191, 2_812, 43_238, 674_624];
+    let expected_node_counts = [1, 22, 278, 606, 43_238, 674_624];
 
     let mut game = Game::initialize(_PERFT_3_FEN_STR);
     run_perft_test(&mut game, &expected_node_counts, test_number);
@@ -675,10 +630,10 @@ fn perft_func(depth: u32, game: &mut Game) -> u32 {
     for n_move in n_moves.iter() {
         let move_to_unmake = make_move(game, *n_move);
         let nodes: u32 = perft_func(depth - 1, game);
-        // let depth_to_print = 2;
-        // if depth == depth_to_print {
-        //     println!("{:?}{:?}: {}", onebit_index_to_coords(n_move.from_square).to_string(), onebit_index_to_coords(n_move.to_square).to_string(), nodes);
-        // }
+        let depth_to_print = 3;
+        if depth == depth_to_print {
+            println!("{:?}{:?}: {}", onebit_index_to_coords(n_move.from_square).to_string(), onebit_index_to_coords(n_move.to_square).to_string(), nodes);
+        }
         total += nodes;
         unmake_move(game, move_to_unmake);
     }
