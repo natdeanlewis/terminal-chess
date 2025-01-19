@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use crate::game::{Game};
 use crate::moves::{calculate_sliding_attacked_squares_including_own, calculate_sliding_attacked_squares_excluding_own, Move};
-use crate::{bit_to_onebit_index, onebit_index_to_bit};
+use crate::{bit_to_onebit_index, onebit_index_to_bit, print_bitboard};
 use crate::utils::{bitboard_to_indices};
 
 
@@ -24,18 +24,35 @@ pub fn generate_bishop_attacked_squares_including_own(from_square: usize, game: 
     attacked_squares
 }
 
+pub fn generate_bishop_pinned_ray(pinned_piece_bit: u64, game: &Game, king_bit: u64) -> u64 {
+    let king_square = bit_to_onebit_index(king_bit);
+    let occupied = game.get_occupied_bitboard() & !pinned_piece_bit;
+    for (direction, attack_masks) in BISHOP_ATTACK_MASKS.iter().enumerate() {
+        // get attacks from KING excluding pinned_piece
+        let moves_in_direction = calculate_sliding_attacked_squares_including_own(
+            attack_masks[king_square],
+            occupied,
+            direction,
+        );
+        if pinned_piece_bit & moves_in_direction != 0 {
+            return moves_in_direction
+        }
+    }
+    return 0u64
+}
+
 pub fn generate_bishop_pinned_piece(from_square: usize, game: &Game, king_bit: u64) -> u64 {
     // Only ignore enemy pieces from the occupied squares to generate pins
     let occupied = game.get_occupied_bitboard();
     for (direction, attack_masks) in BISHOP_ATTACK_MASKS.iter().enumerate() {
-        // get attacks from rook
+        // get attacks from bishop
         let moves_in_direction = calculate_sliding_attacked_squares_including_own(
             attack_masks[from_square],
             occupied,
             direction,
         );
 
-        // get opposite direction rook attacks from king
+        // get opposite direction bishop attacks from king
         // 0 <-> 2 1 <-> 3
         let opposite_direction = (direction + 2) % 4;
         let opposite_direction_attack_mask = BISHOP_ATTACK_MASKS[opposite_direction][bit_to_onebit_index(king_bit)];
@@ -84,7 +101,7 @@ pub fn generate_bishop_moves(from_square: usize, game: &Game) -> Vec<Move> {
                 from_square,
                 to_square: target_square,
                 promotion: None,
-                capture_square: Some(target_square),
+                capture_square: None,
             });
         }
 

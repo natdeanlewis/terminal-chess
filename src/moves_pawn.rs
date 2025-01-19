@@ -95,7 +95,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                     from_square: from_square,
                     to_square: left_diagonal_target_square as usize,
                     promotion: None,
-                    capture_square: Some(left_diagonal_target_square as usize),
+                    capture_square: None,
                 });
             }
         }
@@ -110,7 +110,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                     from_square: from_square,
                     to_square: right_diagonal_target_square as usize,
                     promotion: None,
-                    capture_square: Some(right_diagonal_target_square as usize),
+                    capture_square: None,
                 });
             }
         }

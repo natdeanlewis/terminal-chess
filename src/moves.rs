@@ -1,12 +1,12 @@
-use crate::moves_bishop::{generate_bishop_pinned_piece, generate_bishop_attacked_squares_including_own, generate_bishop_moves};
+use crate::moves_bishop::{generate_bishop_attacked_squares_including_own, generate_bishop_moves, generate_bishop_pinned_piece, generate_bishop_pinned_ray};
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
 use crate::Colour;
 use crate::moves_king::{add_castle_moves, generate_king_attacked_squares_including_own, generate_legal_king_moves};
 use crate::moves_knight::{generate_knight_attacked_squares_including_own, generate_knight_moves};
 use crate::moves_pawn::{generate_pawn_attacked_squares_including_own, generate_pawn_moves};
-use crate::moves_queen::{generate_queen_pinned_piece, generate_queen_attacked_squares_including_own, generate_queen_moves};
-use crate::moves_rook::{generate_rook_pinned_piece, generate_rook_attacked_squares_including_own, generate_rook_moves};
+use crate::moves_queen::{generate_queen_attacked_squares_including_own, generate_queen_moves, generate_queen_pinned_piece, generate_queen_pinned_ray};
+use crate::moves_rook::{generate_rook_attacked_squares_including_own, generate_rook_moves, generate_rook_pinned_piece, generate_rook_pinned_ray};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Move {
@@ -100,9 +100,6 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
         }
     }
 
-    // println!("Attacked squares by : {:?}", opponent_colour);
-    // print_board(game);
-    // print_bitboard(attacked_squares);
     attacked_squares
 }
 
@@ -153,8 +150,35 @@ pub fn pieces_giving_check_bitboard(game: &Game, opponent_colour: Colour) -> u64
             }
         }
     }
-    // print_bitboard(pieces_giving_check);
+
     pieces_giving_check
+}
+
+pub fn pinned_ray_bitboard(game: &Game, opponent_colour: Colour, pinned_piece_bit: u64) -> u64 {
+    let mut pinned_ray_bitboard = 0u64;
+    let mut king_bit = 0u64;
+    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+        king_bit = king.bit;
+    }
+
+    for piece in &game.pieces {
+        if piece.colour == opponent_colour && piece.taken == false {
+            match piece.piece_type {
+                PieceType::Bishop => {
+                    pinned_ray_bitboard |= generate_bishop_pinned_ray(pinned_piece_bit, game, king_bit);
+                },
+                PieceType::Rook => {
+                    pinned_ray_bitboard |= generate_rook_pinned_ray(pinned_piece_bit, game, king_bit);
+                },
+                PieceType::Queen =>  {
+                    pinned_ray_bitboard |= generate_queen_pinned_ray(pinned_piece_bit, game, king_bit);
+                },
+                _ => ()
+            }
+        }
+    }
+
+    pinned_ray_bitboard
 }
 
 pub fn pinned_pieces_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
@@ -184,6 +208,7 @@ pub fn pinned_pieces_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
 
     pinned_pieces_bitboard
 }
+
 
 fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
     let mut possible_moves = generate_pseudolegal_moves_without_castling(game);
@@ -220,54 +245,71 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
         Colour::White => Colour::Black,
         Colour::Black => Colour::White,
     };
-    let pinned_pieces_bitboard = pinned_pieces_bitboard(game, opponent_colour);
-    print_bitboard(pinned_pieces_bitboard);
+
     let pieces_giving_check = pieces_giving_check_bitboard(game, opponent_colour);
     let num_pieces_giving_check = bitboard_to_indices(pieces_giving_check).len();
+    let pinned_pieces_bitboard = pinned_pieces_bitboard(game, opponent_colour);
+    //TODO push all legal king moves here first for efficiency?
+    // consider fewer pieces for moves to pins? On a diagonal ray: bishops, queens, and pawns (captures only).
+    // On a non-diagonal ray: rooks, queens, and pawns (pushes only).
 
-    //TODO push all legal king moves here first for efficiency
     for possible_move in possible_moves {
         let mut capture_mask = u64::MAX;
         let mut push_mask    = u64::MAX;
+    
 
         if possible_move.from_square == king_square {
             // 1: king moves (handled by king move gen)
             new_possible_moves.push(possible_move);
-        } else if pieces_giving_check != 0 {
-            // in check
-            if num_pieces_giving_check > 1 {
-                //double check
-                continue // only king moves valid if double check
-            } else {
-                // single check and piece to move is not king
-                capture_mask = pieces_giving_check;
-                if let Some(checking_piece) = game.pieces.iter().find(|p| p.bit == pieces_giving_check && !p.taken) {
-                    match checking_piece.piece_type {
-                        // If the piece giving check is a slider, we can evade check by blocking it
-                        PieceType::Bishop => {
-                            push_mask = generate_bishop_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
-                        },
-                        PieceType::Rook => {
-                            push_mask = generate_rook_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
-                        },
-                        PieceType::Queen => {
-                            push_mask = generate_queen_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
-                        },
-                        // if the piece is not a slider, we can only evade check by capturing
-                        _ => { push_mask = 0u64 }
-                    }
-                }
-                if let Some(capture_square) = possible_move.capture_square {
-                    println!("here");
-                    if onebit_index_to_bit(capture_square) & capture_mask != 0 ||
-                    onebit_index_to_bit(possible_move.to_square) & push_mask != 0 {
-                        new_possible_moves.push(possible_move);
-                    }
-                } else if onebit_index_to_bit(possible_move.to_square) & push_mask != 0 {
-                    new_possible_moves.push(possible_move);     
-                }
+        } else {
+            let piece_bit = onebit_index_to_bit(possible_move.from_square);
+            if piece_bit & pinned_pieces_bitboard != 0 {
+                    // piece is pinned
+                    // make sure to_square is along pin line
+                    let pinned_ray_bitboard = pinned_ray_bitboard(game, opponent_colour, piece_bit);
+                    push_mask = pinned_ray_bitboard;
+                    // TODO : is this needed?
+                    // capture_mask = pinned_ray_bitboard;
             }
+
+            if pieces_giving_check != 0 {
+                // in check
+                if num_pieces_giving_check > 1 {
+                    //double check
+                    continue // only king moves valid if double check
+                } else {
+                    // single check and piece to move is not king
+                    capture_mask = pieces_giving_check;
+                    if let Some(checking_piece) = game.pieces.iter().find(|p| p.bit == pieces_giving_check && !p.taken) {
+                        match checking_piece.piece_type {
+                            // If the piece giving check is a slider, we can evade check by blocking it
+                            PieceType::Bishop => {
+                                push_mask &= generate_bishop_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
+                            },
+                            PieceType::Rook => {
+                                push_mask &= generate_rook_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
+                            },
+                            PieceType::Queen => {
+                                push_mask &= generate_queen_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
+                            },
+                            // if the piece is not a slider, we can only evade check by capturing
+                            _ => { push_mask = 0u64 }
+                        }
+                    }
+                }
+            }   
+
+            if let Some(capture_square) = possible_move.capture_square {
+                if onebit_index_to_bit(capture_square) & capture_mask != 0 ||
+                onebit_index_to_bit(possible_move.to_square) & push_mask != 0 {
+                    new_possible_moves.push(possible_move);
+                }
+            } else if onebit_index_to_bit(possible_move.to_square) & push_mask != 0 {
+                new_possible_moves.push(possible_move);     
+            }
+
         }
+    
     }
     new_possible_moves
 }
@@ -583,7 +625,7 @@ pub fn calculate_sliding_attacked_squares_including_own(attack_mask: u64, occupi
     truncated_mask
 }
 
-// #[test]
+#[test]
 fn perft_1() {
     let test_number = 1;
     let _perft_1_fen_str = _STARTING_FEN_STR;
@@ -593,7 +635,7 @@ fn perft_1() {
     run_perft_test(&mut game, &expected_node_counts, test_number);
 }
 
-// #[test]
+#[test]
 fn perft_2() {
     let test_number = 2;
     let expected_node_counts = [1, 48, 2_039, 97_862];
@@ -605,22 +647,13 @@ fn perft_2() {
 #[test]
 fn perft_3() {
     let test_number = 3;
-    let expected_node_counts = [1, 22, 278, 606, 43_238, 674_624];
+    let expected_node_counts = [1, 14, 191, 2_812, 43_238, 674_624];
 
     let mut game = Game::initialize(_PERFT_3_FEN_STR);
     run_perft_test(&mut game, &expected_node_counts, test_number);
 }
 
-// #[test]
-// fn perft_3_a4a5_h4g4() {
-//     let test_number = 2;
-//     let expected_node_counts = [1, 14, 224, 2_812, 43_238, 674_624];
-//
-//     let mut game = Game::initialize(_PERFT_3_FEN_STR);
-//     run_perft_test(&mut game, &expected_node_counts, test_number);
-// }
-
-// #[test]
+#[test]
 fn perft_4() {
     let test_number = 4;
     let expected_node_counts = [1, 6, 264, 9_467, 422_333];
@@ -629,7 +662,7 @@ fn perft_4() {
     run_perft_test(&mut game, &expected_node_counts, test_number);
 }
 
-// #[test]
+#[test]
 fn perft_5() {
     let test_number = 5;
     let expected_node_counts = [1, 44, 1_486, 62_379];
@@ -638,7 +671,7 @@ fn perft_5() {
     run_perft_test(&mut game, &expected_node_counts, test_number);
 }
 
-// #[test]
+#[test]
 fn perft_6() {
     let test_number = 6;
     let expected_node_counts = [1, 46, 2_079, 89_890];
@@ -657,10 +690,10 @@ fn perft_func(depth: u32, game: &mut Game) -> u32 {
     for n_move in n_moves.iter() {
         let move_to_unmake = make_move(game, *n_move);
         let nodes: u32 = perft_func(depth - 1, game);
-        let depth_to_print = 3;
-        if depth == depth_to_print {
-            println!("{:?}{:?}: {}", onebit_index_to_coords(n_move.from_square).to_string(), onebit_index_to_coords(n_move.to_square).to_string(), nodes);
-        }
+        // let depth_to_print = 3;
+        // if depth == depth_to_print {
+        //     println!("{:?}{:?}: {}", onebit_index_to_coords(n_move.from_square).to_string(), onebit_index_to_coords(n_move.to_square).to_string(), nodes);
+        // }
         total += nodes;
         unmake_move(game, move_to_unmake);
     }
