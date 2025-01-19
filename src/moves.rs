@@ -269,6 +269,7 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
                     let pinned_ray_bitboard = pinned_ray_bitboard(game, opponent_colour, piece_bit);
                     push_mask = pinned_ray_bitboard;
                     // TODO : is this needed?
+                    // rename capture mask to en passant mask if that's what it really is
                     // capture_mask = pinned_ray_bitboard;
             }
 
