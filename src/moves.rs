@@ -266,6 +266,8 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
                     if pieces_along_pin_count > 3 {
                         new_possible_moves.push(possible_move);
                     }
+                } else {
+                    new_possible_moves.push(possible_move);
                 }
             }
 
