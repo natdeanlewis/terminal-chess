@@ -96,7 +96,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                     from_square: from_square,
                     to_square: left_diagonal_target_square as usize,
                     promotion: None,
-                    capture_square: None,
+                    capture_square: Some(left_diagonal_target_square as usize),
                 });
             }
         }
@@ -111,7 +111,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                     from_square: from_square,
                     to_square: right_diagonal_target_square as usize,
                     promotion: None,
-                    capture_square: None,
+                    capture_square: Some(right_diagonal_target_square as usize),
                 });
             }
         }
@@ -120,83 +120,57 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
         match game.en_passant {
             Some(en_passant) => {
                 let en_passant_onebit_index = bit_to_onebit_index(en_passant);
+                let mut king_bit = 0u64;
+                if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+                    king_bit = king.bit;
+                }
+
                 // Left diagonal
                 if from_square % 8 > 0 {
                     let left_diagonal_target_square = from_square as isize + increment - 1;
-                    let occupied_without_pawns = game.get_occupied_bitboard() & !(onebit_index_to_bit(from_square - 1) | onebit_index_to_bit(from_square));
+                    let pawns_bits = onebit_index_to_bit(from_square - 1) | onebit_index_to_bit(from_square);
+                    let occupied_without_pawns = game.get_occupied_bitboard() & !pawns_bits;
 
                     if left_diagonal_target_square == en_passant_onebit_index as isize {
                         // make sure doesn't leave king in check
-                        if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
-                            let king_square = bit_to_onebit_index(king.bit);
-                            let horizontal_moves;
-                            if king_square < from_square {
-                                // king is left of en passant pawns
-                                horizontal_moves = calculate_sliding_attacked_squares_including_own(
-                                    ROOK_ATTACK_MASKS[1][king_square],
-                                    occupied_without_pawns,
-                                    1,
-                                );
-                            } else {
-                                // king is right of en passant pawns
-                                horizontal_moves = calculate_sliding_attacked_squares_including_own(
-                                    ROOK_ATTACK_MASKS[3][king_square],
-                                    occupied_without_pawns,
-                                    3,
-                                );
-                            }
-                            let horizontal_moves_without_pawns_or_king = horizontal_moves & occupied_without_pawns & !king.bit;
-                            if game.pieces.iter().all(|p|
-                                p.bit & horizontal_moves_without_pawns_or_king == 0 || ![PieceType::Queen, PieceType::Rook].contains(&p.piece_type)
-                            ) {
-                                pawn_moves.push(Move {
-                                    from_square: from_square,
-                                    to_square: en_passant_onebit_index,
-                                    promotion: None,
-                                    capture_square: Some(from_square - 1),
-                                });        
-                            }
+                        let horizontal_moves = get_horizontal_moves_through_en_passant_pawns(from_square, occupied_without_pawns, king_bit);
+                        let horizontal_moves_without_pawns_or_king = horizontal_moves & occupied_without_pawns & !king_bit;
+                        // if pawns are not on same row as king OR there isn't a rook or queen at the other end of the horizontal move from the king through the pawns
+                        if horizontal_moves & pawns_bits == 0 || game.pieces.iter().all(|p|
+                            p.bit & horizontal_moves_without_pawns_or_king == 0 || ![PieceType::Queen, PieceType::Rook].contains(&p.piece_type)
+                        ) {
+                            pawn_moves.push(Move {
+                                from_square: from_square,
+                                to_square: en_passant_onebit_index,
+                                promotion: None,
+                                capture_square: Some(from_square - 1),
+                            });        
                         }
+                        
                     }
                 }
 
                 // Right diagonal
                 if from_square % 8 < 7 {
                     let right_diagonal_target_square = from_square as isize + increment + 1;
-                    let occupied_without_pawns = game.get_occupied_bitboard() & !(onebit_index_to_bit(from_square + 1) | onebit_index_to_bit(from_square));
+                    let pawns_bits = onebit_index_to_bit(from_square + 1) | onebit_index_to_bit(from_square);
+                    let occupied_without_pawns = game.get_occupied_bitboard() & !pawns_bits;
 
                     if right_diagonal_target_square == en_passant_onebit_index as isize {
                         if right_diagonal_target_square == en_passant_onebit_index as isize {
                             // make sure doesn't leave king in check
-                            if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
-                                let king_square = bit_to_onebit_index(king.bit);
-                                let horizontal_moves;
-                                if king_square < from_square {
-                                    // king is left of en passant pawns
-                                    horizontal_moves = calculate_sliding_attacked_squares_including_own(
-                                        ROOK_ATTACK_MASKS[1][king_square],
-                                        occupied_without_pawns,
-                                        1,
-                                    );
-                                } else {
-                                    // king is right of en passant pawns
-                                    horizontal_moves = calculate_sliding_attacked_squares_including_own(
-                                        ROOK_ATTACK_MASKS[3][king_square],
-                                        occupied_without_pawns,
-                                        3,
-                                    );
-                                }
-                                let horizontal_moves_without_pawns_or_king = horizontal_moves & occupied_without_pawns & !king.bit;
-                                if game.pieces.iter().all(|p|
-                                    p.bit & horizontal_moves_without_pawns_or_king == 0 || ![PieceType::Queen, PieceType::Rook].contains(&p.piece_type)
-                                ) {
-                                    pawn_moves.push(Move {
-                                        from_square: from_square,
-                                        to_square: en_passant_onebit_index,
-                                        promotion: None,
-                                        capture_square: Some(from_square + 1),
-                                    });        
-                                }
+                            let horizontal_moves = get_horizontal_moves_through_en_passant_pawns(from_square, occupied_without_pawns, king_bit);
+                            let horizontal_moves_without_pawns_or_king = horizontal_moves & occupied_without_pawns & !king_bit;
+                            // if pawns are not on same row as king OR there isn't a rook or queen at the other end of the horizontal move from the king through the pawns
+                            if horizontal_moves & pawns_bits == 0 || game.pieces.iter().all(|p|
+                                p.bit & horizontal_moves_without_pawns_or_king == 0 || ![PieceType::Queen, PieceType::Rook].contains(&p.piece_type)
+                            ) {
+                                pawn_moves.push(Move {
+                                    from_square: from_square,
+                                    to_square: en_passant_onebit_index,
+                                    promotion: None,
+                                    capture_square: Some(from_square + 1),
+                                });        
                             }
                         }
                     }
@@ -222,4 +196,25 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
     }
 
     possible_moves
+}
+
+fn get_horizontal_moves_through_en_passant_pawns(from_square: usize, occupied_without_pawns: u64, king_bit: u64) -> u64{
+    let mut horizontal_moves = 0u64;
+    let king_square = bit_to_onebit_index(king_bit);
+    if king_square < from_square {
+        // king is left of en passant pawns
+        horizontal_moves = calculate_sliding_attacked_squares_including_own(
+            ROOK_ATTACK_MASKS[1][king_square],
+            occupied_without_pawns,
+            1,
+        );
+    } else {
+        // king is right of en passant pawns
+        horizontal_moves = calculate_sliding_attacked_squares_including_own(
+            ROOK_ATTACK_MASKS[3][king_square],
+            occupied_without_pawns,
+            3,
+        );
+    }
+    horizontal_moves
 }

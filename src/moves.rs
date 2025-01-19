@@ -88,7 +88,7 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
                     attacked_squares |= generate_bishop_attacked_squares_including_own(from_square, occupied_excluding_king);
                 },
                 PieceType::Rook => {
-                    attacked_squares |= generate_rook_attacked_squares_including_own(from_square, game, occupied_excluding_king);
+                    attacked_squares |= generate_rook_attacked_squares_including_own(from_square, occupied_excluding_king);
                 },
                 PieceType::Queen =>  {
                     attacked_squares |= generate_queen_attacked_squares_including_own(from_square, game, occupied_excluding_king);
@@ -135,7 +135,7 @@ pub fn pieces_giving_check_bitboard(game: &Game, opponent_colour: Colour) -> u64
                     }
                 },
                 PieceType::Rook => {
-                    let rook_attacks = generate_rook_attacked_squares_including_own(from_square, game, occupied);
+                    let rook_attacks = generate_rook_attacked_squares_including_own(from_square, occupied);
                     if rook_attacks & king_bit != 0 {
                         pieces_giving_check |= piece.bit;
                     }
@@ -264,13 +264,16 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
         } else {
             let piece_bit = onebit_index_to_bit(possible_move.from_square);
             if piece_bit & pinned_pieces_bitboard != 0 {
-                    // piece is pinned
-                    // make sure to_square is along pin line
-                    let pinned_ray_bitboard = pinned_ray_bitboard(game, opponent_colour, piece_bit);
-                    push_mask = pinned_ray_bitboard;
-                    // TODO : is this needed?
-                    // rename capture mask to en passant mask if that's what it really is
-                    // capture_mask = pinned_ray_bitboard;
+                
+                // print_bitboard(pinned_pieces_bitboard);
+                // piece is pinned
+                // make sure to_square is along pin line
+                let pinned_ray_bitboard = pinned_ray_bitboard(game, opponent_colour, piece_bit);
+
+                push_mask &= pinned_ray_bitboard;
+                // TODO : is this needed?
+                // rename capture mask to en passant mask if that's what it really is
+                capture_mask &= pinned_ray_bitboard;
             }
 
             if pieces_giving_check != 0 {
@@ -280,7 +283,7 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
                     continue // only king moves valid if double check
                 } else {
                     // single check and piece to move is not king
-                    capture_mask = pieces_giving_check;
+                    capture_mask &= pieces_giving_check;
                     if let Some(checking_piece) = game.pieces.iter().find(|p| p.bit == pieces_giving_check && !p.taken) {
                         match checking_piece.piece_type {
                             // If the piece giving check is a slider, we can evade check by blocking it
@@ -297,6 +300,8 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
                             _ => { push_mask = 0u64 }
                         }
                     }
+                    // print_bitboard(capture_mask);
+                    // print_bitboard(push_mask);
                 }
             }   
 

@@ -8,7 +8,7 @@ lazy_static! {
     pub static ref ROOK_ATTACK_MASKS: [[u64; 64]; 4] = precompute_rook_attack_masks();
 }
 
-pub fn generate_rook_attacked_squares_including_own(from_square: usize, game: &Game, occupied: u64) -> u64 {
+pub fn generate_rook_attacked_squares_including_own(from_square: usize, occupied: u64) -> u64 {
     let mut attacked_squares = 0u64;
     for (direction, attack_masks) in ROOK_ATTACK_MASKS.iter().enumerate() {
         let moves_in_direction = calculate_sliding_attacked_squares_including_own(
@@ -112,7 +112,7 @@ pub fn generate_rook_moves(from_square: usize, game: &Game) -> Vec<Move> {
             from_square,
             to_square: target_square,
             promotion: None,
-            capture_square: None,
+            capture_square: Some(target_square),
         });
     }
 

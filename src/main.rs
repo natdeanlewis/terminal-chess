@@ -13,7 +13,7 @@ use game::*;
 use crate::utils::*;
 
 fn main() {
-    let mut game = Game::initialize(_STARTING_FEN_STR);
+    let mut game = Game::initialize(_PERFT_3_FEN_STR);
     game.players = get_players_loop();
     game_loop(game)
 }

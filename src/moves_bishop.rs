@@ -100,7 +100,7 @@ pub fn generate_bishop_moves(from_square: usize, game: &Game) -> Vec<Move> {
                 from_square,
                 to_square: target_square,
                 promotion: None,
-                capture_square: None,
+                capture_square: Some(target_square),
             });
         }
 

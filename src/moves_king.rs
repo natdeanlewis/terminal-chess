@@ -25,7 +25,7 @@ pub fn generate_legal_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
             from_square: from_square,
             to_square: target_square,
             promotion: None,
-            capture_square: None,
+            capture_square: Some(target_square),
         });
     }
     possible_moves
