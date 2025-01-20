@@ -1,3 +1,4 @@
+use std::time::Instant;
 use crate::moves_bishop::{generate_bishop_attacked_squares_including_own, generate_bishop_moves, generate_bishop_pinned_piece, generate_bishop_pinned_ray};
 use crate::game::{CastlingRights, Game, PieceType, Square};
 use crate::utils::*;
@@ -672,9 +673,17 @@ fn perft_func(depth: u32, game: &mut Game) -> u32 {
 
 #[allow(unused)]
 fn run_perft_test(game: &mut Game, expected_node_counts: &[u32], test_number: i32) {
+    let mut running_total = 0;
+    let now = Instant::now();
+
     for (depth, &expected_nodes) in expected_node_counts.iter().enumerate() {
         let nodes = perft_func(depth as u32, game);
+        running_total += nodes;
         assert_eq!(nodes, expected_nodes, "Mismatch at depth {}", depth);
         println!("Test {}: Depth {}: Success! Expected {} nodes, got {}", test_number, depth, expected_nodes, nodes);
     }
+
+    let elapsed = now.elapsed();
+    let nps = running_total as f64 / elapsed.as_secs_f64();
+    println!("Overall Nodes Per Second: {}", nps);
 }

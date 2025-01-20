@@ -1,7 +1,8 @@
-build: `cargo build`
-run: `cargo run`
-test: `cargo test`
-test with println!s :`cargo test -- --nocapture`
+build: `cargo build --release`
+run: `cargo run --release`
+test: `cargo test --release`
+test with println!s :`cargo test --release -- --nocapture`
+(without release flag builds much faster but runs MUCH (10x) slower, v significant at higher depths)
 
 - TODOs:
   - turn piece bonuses down or increase check bonus in endgame?
