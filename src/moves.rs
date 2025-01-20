@@ -91,7 +91,7 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
                     attacked_squares |= generate_rook_attacked_squares_including_own(from_square, occupied_excluding_king);
                 },
                 PieceType::Queen =>  {
-                    attacked_squares |= generate_queen_attacked_squares_including_own(from_square, game, occupied_excluding_king);
+                    attacked_squares |= generate_queen_attacked_squares_including_own(from_square, occupied_excluding_king);
                 },
                 PieceType::King => {
                     attacked_squares |= generate_king_attacked_squares_including_own(from_square);
@@ -141,7 +141,7 @@ pub fn pieces_giving_check_bitboard(game: &Game, opponent_colour: Colour) -> u64
                     }
                 },
                 PieceType::Queen =>  {
-                    let queen_attacks = generate_queen_attacked_squares_including_own(from_square, game, occupied);
+                    let queen_attacks = generate_queen_attacked_squares_including_own(from_square, occupied);
                     if queen_attacks & king_bit != 0 {
                         pieces_giving_check |= piece.bit;
                     }

@@ -135,9 +135,9 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                         // make sure doesn't leave king in check
                         let horizontal_moves = get_horizontal_moves_through_en_passant_pawns(from_square, occupied_without_pawns, king_bit);
                         let horizontal_moves_without_pawns_or_king = horizontal_moves & occupied_without_pawns & !king_bit;
-                        // if pawns are not on same row as king OR there isn't a rook or queen at the other end of the horizontal move from the king through the pawns
+                        // if pawns are not on same row as king OR there isn't an enemy rook or queen at the other end of the horizontal move from the king through the pawns
                         if horizontal_moves & pawns_bits == 0 || game.pieces.iter().all(|p|
-                            p.bit & horizontal_moves_without_pawns_or_king == 0 || ![PieceType::Queen, PieceType::Rook].contains(&p.piece_type)
+                            p.bit & horizontal_moves_without_pawns_or_king == 0 || !([PieceType::Queen, PieceType::Rook].contains(&p.piece_type) && p.colour != game.active_colour && !p.taken)
                         ) {
                             pawn_moves.push(Move {
                                 from_square: from_square,
@@ -163,7 +163,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
                             let horizontal_moves_without_pawns_or_king = horizontal_moves & occupied_without_pawns & !king_bit;
                             // if pawns are not on same row as king OR there isn't a rook or queen at the other end of the horizontal move from the king through the pawns
                             if horizontal_moves & pawns_bits == 0 || game.pieces.iter().all(|p|
-                                p.bit & horizontal_moves_without_pawns_or_king == 0 || ![PieceType::Queen, PieceType::Rook].contains(&p.piece_type)
+                                p.bit & horizontal_moves_without_pawns_or_king == 0 || !([PieceType::Queen, PieceType::Rook].contains(&p.piece_type) && p.colour != game.active_colour && !p.taken)
                             ) {
                                 pawn_moves.push(Move {
                                     from_square: from_square,
@@ -199,7 +199,7 @@ pub fn generate_pawn_moves(from_square: usize, game: &Game) -> Vec<Move> {
 }
 
 fn get_horizontal_moves_through_en_passant_pawns(from_square: usize, occupied_without_pawns: u64, king_bit: u64) -> u64{
-    let mut horizontal_moves = 0u64;
+    let horizontal_moves;
     let king_square = bit_to_onebit_index(king_bit);
     if king_square < from_square {
         // king is left of en passant pawns
