@@ -64,7 +64,7 @@ pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move>
     possible_moves
 }
 
-pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
+pub fn squares_attacked_by_colour_bitboard(game: &Game, attacking_colour: Colour) -> u64 {
     let mut attacked_squares =  0u64;
     let mut king_bit = 0u64;
     if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
@@ -76,11 +76,11 @@ pub fn squares_attacked_by_opponent_bitboard(game: &Game, opponent_colour: Colou
     let occupied_excluding_king = occupied & !king_bit;
 
     for piece in &game.pieces {
-        if piece.colour == opponent_colour && piece.taken == false {
+        if piece.colour == attacking_colour && piece.taken == false {
             let from_square = bit_to_onebit_index(piece.bit);
             match piece.piece_type {
                 PieceType::Pawn => {
-                    attacked_squares |= generate_pawn_attacked_squares_including_own(from_square, opponent_colour);
+                    attacked_squares |= generate_pawn_attacked_squares_including_own(from_square, attacking_colour);
                 }
                 PieceType::Knight => {
                     attacked_squares |= generate_knight_attacked_squares_including_own(from_square);
@@ -310,14 +310,6 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     new_possible_moves
 }
 
-pub fn inactive_colour_in_check(game: &mut Game, king_square: usize) -> bool {
-    let next_possible_moves = generate_pseudolegal_moves(game);
-    if next_possible_moves.iter().any(|m| m.to_square == king_square) {
-        return true;
-    }
-    false
-}
-
 pub fn make_move(game: &mut Game, move_to_make: Move) -> MoveToUnmake {
     let start_bit = onebit_index_to_bit(move_to_make.from_square);
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
@@ -513,15 +505,16 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     };
 
     // Check if the opponent's king is in check
-    let inactive_colour = match game.active_colour {
+    let opponent_colour = match game.active_colour {
         Colour::White => Colour::Black,
         Colour::Black => Colour::White,
     };
 
-    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == inactive_colour) {
-        let king_square = bit_to_onebit_index(king.bit);
-        game.colour_in_check = if inactive_colour_in_check(game, king_square) {
-            Some(inactive_colour)
+    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == opponent_colour) {
+        let squares_attacked_by_active_colour = squares_attacked_by_colour_bitboard(game, game.active_colour);
+
+        game.colour_in_check = if squares_attacked_by_active_colour & king.bit != 0 {
+            Some(opponent_colour)
         } else {
             None
         };
@@ -531,7 +524,7 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     if game.active_colour == Colour::Black {
         game.fullmove_number += 1;
     }
-    game.active_colour = inactive_colour;
+    game.active_colour = opponent_colour;
 
     move_to_unmake
 }

@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use crate::utils::{bitboard_to_indices, onebit_index_to_bit};
 use crate::game::{CastlingRights, Colour, Game, Square};
-use crate::moves::{squares_attacked_by_opponent_bitboard, Move};
+use crate::moves::{squares_attacked_by_colour_bitboard, Move};
 
 lazy_static! {
     static ref KING_MOVES: [u64; 64] = precompute_king_move_bitboards();
@@ -15,7 +15,7 @@ pub fn generate_legal_king_moves(from_square: usize, game: &Game) -> Vec<Move> {
         Colour::White => Colour::Black,
         Colour::Black => Colour::White,
     };
-    let squares_attacked_by_opponent = squares_attacked_by_opponent_bitboard(game, opponent_colour);
+    let squares_attacked_by_opponent = squares_attacked_by_colour_bitboard(game, opponent_colour);
 
     // Don't move the king into check
     let legal_moves = pseudolegal_moves & !squares_attacked_by_opponent;
@@ -80,7 +80,7 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
         Colour::White => Colour::Black,
     };
 
-    let squares_attacked_by_opponent_bitboard = squares_attacked_by_opponent_bitboard(game, opponent_colour);
+    let squares_attacked_by_opponent_bitboard = squares_attacked_by_colour_bitboard(game, opponent_colour);
 
     if game.active_colour == Colour::White {
         if game.castling_rights.contains(CastlingRights::WHITEKINGSIDE) {
