@@ -349,50 +349,64 @@ pub fn unmake_move(game: &mut Game, move_to_unmake: MoveToUnmake) {
     let start_bit = onebit_index_to_bit(move_to_unmake.from_square);
     let end_bit = onebit_index_to_bit(move_to_unmake.to_square);
 
-    if let Some(piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit && p.colour != game.active_colour) {
-        if let Some(_promotion_piece) = move_to_unmake.promotion {
-            game.pieces[piece_index].piece_type = PieceType::Pawn;
-        };
+    // Locate the moved piece
+    if let Some(piece_index) = game.pieces.iter().position(|p| !p.taken && p.bit == end_bit && p.colour != game.active_colour) {
+        let piece = &mut game.pieces[piece_index];
 
-        game.pieces[piece_index].bit = start_bit;
+        // Handle promotion revert
+        if move_to_unmake.promotion.is_some() {
+            piece.piece_type = PieceType::Pawn;
+        }
+
+        // Revert piece position
+        piece.bit = start_bit;
         game.squares[move_to_unmake.from_square] = Square::Occupied(piece_index);
         game.squares[move_to_unmake.to_square] = Square::Empty;
-        if let Some(captured_piece_index) = move_to_unmake.captured_piece_index {
-            if let Some(captured_piece_square) = move_to_unmake.captured_piece_square {
-                game.pieces[captured_piece_index].taken = false;
-                game.squares[captured_piece_square] = Square::Occupied(captured_piece_index);
-            }
+
+        // Restore captured piece, if any
+        if let (Some(captured_piece_index), Some(captured_piece_square)) =
+            (move_to_unmake.captured_piece_index, move_to_unmake.captured_piece_square)
+        {
+            let captured_piece = &mut game.pieces[captured_piece_index];
+            captured_piece.taken = false;
+            game.squares[captured_piece_square] = Square::Occupied(captured_piece_index);
         }
 
-        if let Some(previous_castled_rook_piece_index) = move_to_unmake.previous_castled_rook_piece_index {
-            if let Some(previous_castled_rook_piece_from_square) = move_to_unmake.previous_castled_rook_piece_from_square {
-                if let Some(previous_castled_rook_piece_to_square) = move_to_unmake.previous_castled_rook_piece_to_square {
-                    game.pieces[previous_castled_rook_piece_index].bit = onebit_index_to_bit(previous_castled_rook_piece_from_square);
-                    game.squares[previous_castled_rook_piece_from_square] = Square::Occupied(previous_castled_rook_piece_index);
-                    game.squares[previous_castled_rook_piece_to_square] = Square::Empty;
-
-                }
-            }
+        // Restore castled rook, if any
+        if let (
+            Some(rook_index),
+            Some(rook_from_square),
+            Some(rook_to_square),
+        ) = (
+            move_to_unmake.previous_castled_rook_piece_index,
+            move_to_unmake.previous_castled_rook_piece_from_square,
+            move_to_unmake.previous_castled_rook_piece_to_square,
+        ) {
+            let rook = &mut game.pieces[rook_index];
+            rook.bit = onebit_index_to_bit(rook_from_square);
+            game.squares[rook_from_square] = Square::Occupied(rook_index);
+            game.squares[rook_to_square] = Square::Empty;
         }
 
+        // Restore game state
         game.castling_rights = move_to_unmake.previous_castling_rights;
         game.en_passant = move_to_unmake.previous_en_passant;
-
         game.colour_in_check = move_to_unmake.previous_colour_in_check;
         game.last_move = move_to_unmake.previous_last_move;
 
-        // If Black has just moved
+        // Adjust fullmove counter if Black's turn is reverted
         if game.active_colour == Colour::White {
             game.fullmove_number -= 1;
         }
 
-        let inactive_colour = match game.active_colour {
+        // Swap active colour
+        game.active_colour = match game.active_colour {
             Colour::White => Colour::Black,
             Colour::Black => Colour::White,
         };
-        game.active_colour = inactive_colour;
     }
 }
+
 
 fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece_index: usize, end_bit: u64) -> MoveToUnmake {
     let mut move_to_unmake = MoveToUnmake {
