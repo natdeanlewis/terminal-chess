@@ -24,7 +24,7 @@ pub enum PieceType {
     King
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Piece {
     pub(crate) bit: u64,
     pub(crate) colour: Colour,
@@ -340,7 +340,7 @@ impl Game {
 }
 
 pub fn game_loop(mut game: Game) {
-    let max_depth = 2;
+    let max_depth = 3;
     let fen_string = Game::write_FEN_without_move_counts(&game);
     *game.position_counts.entry(fen_string.clone()).or_insert(0) += 1;
 

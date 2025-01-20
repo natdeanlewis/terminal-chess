@@ -62,8 +62,7 @@ static KING_MIDDLEGAME: [i32; 64] =
         20, 20,  0,  0,  0,  0, 20, 20,
         20, 30, 10,  0,  0, 10, 30, 20];
 
-// TODO: incorporate this
-static _KING_ENDGAME: [i32; 64] =
+static KING_ENDGAME: [i32; 64] =
     [-50,-40,-30,-20,-20,-30,-40,-50,
         -30,-20,-10,  0,  0,-10,-20,-30,
         -30,-10, 20, 30, 30, 20,-10,-30,
@@ -74,21 +73,23 @@ static _KING_ENDGAME: [i32; 64] =
         -50,-30,-30,-30,-30,-30,-30,-50];
 
 
-fn evaluate_game(test_game: &mut Game, maximizing_colour: Colour) -> f64 {
+fn evaluate_game(game: &mut Game, maximizing_colour: Colour) -> f64 {
     let mut evaluation = 0;
-    for piece in &test_game.pieces {
-        if piece.taken == false {
+    let pieces_remaining = game.pieces.iter_mut().filter(|p| !p.taken);
+    let is_endgame = pieces_remaining.count() < 5;
+    for piece in &game.pieces {
+        if !piece.taken {
             if piece.colour == maximizing_colour {
-                evaluation += piece_evaluation(&piece);
+                evaluation += piece_evaluation(&piece, is_endgame);
             } else {
-                evaluation -= piece_evaluation(&piece);
+                evaluation -= piece_evaluation(&piece, is_endgame);
             }
         }
     }
 
     let check_evaluation;
-    if let Some(colour_in_check) = test_game.colour_in_check {
-        if test_game.possible_moves.len() == 0 {
+    if let Some(colour_in_check) = game.colour_in_check {
+        if game.possible_moves.len() == 0 {
             // Checkmate
             check_evaluation = 10000;
         } else {
@@ -105,7 +106,17 @@ fn evaluate_game(test_game: &mut Game, maximizing_colour: Colour) -> f64 {
     return evaluation as f64 / 100.0
 }
 
-fn piece_evaluation(piece: &Piece) -> i32 {
+fn king_positional_eval(piece_square: usize, is_endgame: bool) -> i32 {
+    let mut king_eval = 20000;
+    if is_endgame {
+        king_eval += KING_ENDGAME[piece_square]
+    } else {
+        king_eval += KING_MIDDLEGAME[piece_square]
+    }
+    return king_eval
+}
+
+fn piece_evaluation(piece: &Piece, is_endgame: bool) -> i32 {
     let mut piece_square = bit_to_onebit_index(piece.bit);
 
     if piece.colour == Colour::White {
@@ -118,7 +129,7 @@ fn piece_evaluation(piece: &Piece) -> i32 {
         PieceType::Knight => return 330 + KNIGHT_PST[piece_square],
         PieceType::Rook => return 500 + ROOK_PST[piece_square],
         PieceType::Queen => return 900 + QUEEN_PST[piece_square],
-        PieceType::King =>  return 20000 + KING_MIDDLEGAME[piece_square],
+        PieceType::King =>  return king_positional_eval(piece_square, is_endgame),
     }
 }
 
