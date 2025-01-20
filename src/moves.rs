@@ -593,7 +593,7 @@ pub fn calculate_sliding_attacked_squares_including_own(attack_mask: u64, occupi
 fn perft_1() {
     let test_number = 1;
     let _perft_1_fen_str = _STARTING_FEN_STR;
-    let expected_node_counts = [1, 20, 400, 8_902, 197_281];
+    let expected_node_counts = [1, 20, 400, 8_902, 197_281, 4_865_609];
 
     let mut game = Game::initialize(_perft_1_fen_str);
     run_perft_test(&mut game, &expected_node_counts, test_number);
@@ -602,7 +602,7 @@ fn perft_1() {
 #[test]
 fn perft_2() {
     let test_number = 2;
-    let expected_node_counts = [1, 48, 2_039, 97_862];
+    let expected_node_counts = [1, 48, 2_039, 97_862, 4_085_603];
 
     let mut game = Game::initialize(_PERFT_2_FEN_STR);
     run_perft_test(&mut game, &expected_node_counts, test_number);
@@ -629,7 +629,7 @@ fn perft_4() {
 #[test]
 fn perft_5() {
     let test_number = 5;
-    let expected_node_counts = [1, 44, 1_486, 62_379];
+    let expected_node_counts = [1, 44, 1_486, 62_379, 2_103_487];
 
     let mut game = Game::initialize(_PERFT_5_FEN_STR);
     run_perft_test(&mut game, &expected_node_counts, test_number);
@@ -638,7 +638,7 @@ fn perft_5() {
 #[test]
 fn perft_6() {
     let test_number = 6;
-    let expected_node_counts = [1, 46, 2_079, 89_890];
+    let expected_node_counts = [1, 46, 2_079, 89_890, 3_894_594];
 
     let mut game = Game::initialize(_PERFT_6_FEN_STR);
     run_perft_test(&mut game, &expected_node_counts, test_number);
