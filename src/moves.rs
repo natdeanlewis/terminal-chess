@@ -410,158 +410,123 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
         previous_castled_rook_piece_to_square: None,
     };
 
-    // Castling
+    let move_distance = (move_to_make.to_square as isize - move_to_make.from_square as isize).abs();
+
+    // Handle Castling
     if game.pieces[start_piece_index].piece_type == PieceType::King {
-        // Remove queen and king side castling rights
+        // Remove castling rights for both sides
         match game.active_colour {
             Colour::White => {
                 game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
                 game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
-            }
+            },
             Colour::Black => {
                 game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
                 game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE);
-            }
+            },
         }
-        if (move_to_make.to_square as isize - move_to_make.from_square as isize).abs() == 2 {
-            let king_side_rook_square;
-            let queen_side_rook_square;
-            if game.active_colour == Colour::White {
-                king_side_rook_square = 7;
-                queen_side_rook_square = 0;
+
+        if move_distance == 2 {
+            let (rook_from, rook_to) = if move_to_make.to_square > move_to_make.from_square {
+                // King-side
+                (move_to_make.from_square + 3, move_to_make.from_square + 1)
             } else {
-                king_side_rook_square = 63;
-                queen_side_rook_square = 56;
-            }
+                // Queen-side
+                (move_to_make.from_square - 4, move_to_make.from_square - 1)
+            };
 
-            if move_to_make.to_square > move_to_make.from_square {
-                // King side rook
-                if let Some(rook) = game.pieces.iter_mut().find(|p| p.bit == onebit_index_to_bit(king_side_rook_square)) {
-                    rook.bit = onebit_index_to_bit(move_to_make.from_square + 1);
-                }
-                if let Some(rook_piece_index) = get_piece_index(&game.squares[move_to_make.from_square + 3]) {
-                    game.squares[move_to_make.from_square + 1] = Square::Occupied(rook_piece_index);
-                    game.squares[move_to_make.from_square + 3] = Square::Empty;
-                    move_to_unmake.previous_castled_rook_piece_index = Some(rook_piece_index);
-                    move_to_unmake.previous_castled_rook_piece_from_square = Some(move_to_make.from_square + 3);
-                    move_to_unmake.previous_castled_rook_piece_to_square = Some(move_to_make.from_square + 1);
+            if let Some(rook_piece_index) = get_piece_index(&game.squares[rook_from]) {
+                let rook = &mut game.pieces[rook_piece_index];
+                rook.bit = onebit_index_to_bit(rook_to);
+                game.squares[rook_to] = Square::Occupied(rook_piece_index);
+                game.squares[rook_from] = Square::Empty;
 
-                }
-            } else {
-                // Queen side rook
-                if let Some(rook) = game.pieces.iter_mut().find(|p| p.bit == onebit_index_to_bit(queen_side_rook_square)) {
-                    rook.bit = onebit_index_to_bit(move_to_make.from_square - 1);
-                }
-                if let Some(rook_piece_index) = get_piece_index(&game.squares[move_to_make.from_square - 4]) {
-                    game.squares[move_to_make.from_square - 1] = Square::Occupied(rook_piece_index);
-                    game.squares[move_to_make.from_square - 4] = Square::Empty;
-                    move_to_unmake.previous_castled_rook_piece_index = Some(rook_piece_index);
-                    move_to_unmake.previous_castled_rook_piece_from_square = Some(move_to_make.from_square - 4);
-                    move_to_unmake.previous_castled_rook_piece_to_square = Some(move_to_make.from_square - 1);
-
-                }
+                move_to_unmake.previous_castled_rook_piece_index = Some(rook_piece_index);
+                move_to_unmake.previous_castled_rook_piece_from_square = Some(rook_from);
+                move_to_unmake.previous_castled_rook_piece_to_square = Some(rook_to);
             }
         }
     }
+
+    // Handle Rook moves that affect castling rights
     if game.pieces[start_piece_index].piece_type == PieceType::Rook {
-        //Remove this rook's side castling rights
         match move_to_make.from_square {
-            0 => {
-                game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
-            }
-            7 => {
-                game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
-            }
-            56 => {
-                game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE);
-            }
-            63 => {
-                game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
-            }
+            0 => game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE),
+            7 => game.castling_rights.remove(CastlingRights::WHITEKINGSIDE),
+            56 => game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE),
+            63 => game.castling_rights.remove(CastlingRights::BLACKKINGSIDE),
             _ => {}
         }
-
     }
 
-    // En passant capture
-    match game.en_passant {
-        Some(en_passant_bit) => {
-            if end_bit == en_passant_bit && game.pieces[start_piece_index].piece_type == PieceType::Pawn {
-                let captured_piece_square;
-                if game.active_colour == Colour::White {
-                    captured_piece_square = move_to_make.to_square - 8;
-                } else {
-                    captured_piece_square = move_to_make.to_square + 8;
-                }
-                let captured_piece_bit = onebit_index_to_bit(captured_piece_square);
-                if let Some(captured_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == captured_piece_bit) {
-                    game.pieces[captured_piece_index].taken = true;
-                    game.squares[captured_piece_square] = Square::Empty;
-                    move_to_unmake.captured_piece_index = Some(captured_piece_index);
-                    move_to_unmake.captured_piece_square = Some(captured_piece_square);
-                }
+    // Handle En Passant Capture
+    if let Some(en_passant_bit) = game.en_passant {
+        if end_bit == en_passant_bit && game.pieces[start_piece_index].piece_type == PieceType::Pawn {
+            let captured_square = if game.active_colour == Colour::White {
+                move_to_make.to_square - 8
+            } else {
+                move_to_make.to_square + 8
+            };
+
+            if let Some(captured_piece_index) = get_piece_index(&game.squares[captured_square]) {
+                game.pieces[captured_piece_index].taken = true;
+                game.squares[captured_square] = Square::Empty;
+                move_to_unmake.captured_piece_index = Some(captured_piece_index);
+                move_to_unmake.captured_piece_square = Some(captured_square);
             }
         }
-        _ => {}
     }
 
-    // Standard capture
-    if let Some(target_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == end_bit) {
+    // Handle Standard Capture
+    if let Some(target_index) = game.pieces.iter().position(|p| !p.taken && p.bit == end_bit) {
         game.pieces[target_index].taken = true;
-        let captured_piece_square = bit_to_onebit_index(game.pieces[target_index].bit);
+        game.squares[move_to_make.to_square] = Square::Occupied(target_index);
         move_to_unmake.captured_piece_index = Some(target_index);
-        move_to_unmake.captured_piece_square = Some(captured_piece_square);
+        move_to_unmake.captured_piece_square = Some(bit_to_onebit_index(game.pieces[target_index].bit));
+
+        // Remove captured rook's castling rights
         if game.pieces[target_index].piece_type == PieceType::Rook {
-            // Remove this rook's side castling rights
-            match captured_piece_square {
-                0 => {
-                    game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
-                }
-                7 => {
-                    game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
-                }
-                56 => {
-                    game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE);
-                }
-                63 => {
-                    game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
-                }
+            match move_to_make.to_square {
+                0 => game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE),
+                7 => game.castling_rights.remove(CastlingRights::WHITEKINGSIDE),
+                56 => game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE),
+                63 => game.castling_rights.remove(CastlingRights::BLACKKINGSIDE),
                 _ => {}
             }
         }
     }
 
-    let piece_index = get_piece_index(&game.squares[move_to_make.from_square]);
-    game.squares[move_to_make.to_square] = Square::Occupied(piece_index.unwrap());
+    // Update the board
+    game.squares[move_to_make.to_square] = Square::Occupied(start_piece_index);
     game.squares[move_to_make.from_square] = Square::Empty;
     game.pieces[start_piece_index].bit = end_bit;
 
-    if game.pieces[start_piece_index].piece_type == PieceType::Pawn && (move_to_make.to_square as isize - move_to_make.from_square as isize).abs() == 16 {
-        let en_passant_square = (move_to_make.from_square + move_to_make.to_square) / 2;
-        game.en_passant = Some(onebit_index_to_bit(en_passant_square));
+    // Set En Passant if Pawn moved two squares
+    game.en_passant = if game.pieces[start_piece_index].piece_type == PieceType::Pawn && move_distance == 16 {
+        Some(onebit_index_to_bit((move_to_make.from_square + move_to_make.to_square) / 2))
     } else {
-        game.en_passant = None;
-    }
+        None
+    };
 
+    // Check if the opponent's king is in check
     let inactive_colour = match game.active_colour {
         Colour::White => Colour::Black,
         Colour::Black => Colour::White,
     };
 
-    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != game.active_colour) {
+    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == inactive_colour) {
         let king_square = bit_to_onebit_index(king.bit);
-
-        if inactive_colour_in_check(game, king_square) {
-            game.colour_in_check = Some(inactive_colour);
+        game.colour_in_check = if inactive_colour_in_check(game, king_square) {
+            Some(inactive_colour)
         } else {
-            game.colour_in_check = None
-        }
+            None
+        };
     }
 
+    // Increment fullmove number and switch active colour
     if game.active_colour == Colour::Black {
         game.fullmove_number += 1;
     }
-
     game.active_colour = inactive_colour;
 
     move_to_unmake
