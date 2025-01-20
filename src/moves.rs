@@ -271,8 +271,6 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
                 let pinned_ray_bitboard = pinned_ray_bitboard(game, opponent_colour, piece_bit);
 
                 push_mask &= pinned_ray_bitboard;
-                // TODO : is this needed?
-                // rename capture mask to en passant mask if that's what it really is
                 capture_mask &= pinned_ray_bitboard;
             }
 
@@ -335,13 +333,13 @@ pub fn make_move(game: &mut Game, move_to_make: Move) -> MoveToUnmake {
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
     if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
+
+
+        let move_to_unmake = make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
         // Promote first so check will be calculated if promoted piece puts king in check
         if let Some(promotion_piece)  = move_to_make.promotion {
             game.pieces[start_piece_index].piece_type = promotion_piece;
         };
-
-        let move_to_unmake = make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
-
         return move_to_unmake
     }
     panic!("No piece found at this move's start index")
