@@ -680,7 +680,7 @@ fn run_perft_test(game: &mut Game, expected_node_counts: &[u32], test_number: i3
         let nodes = perft_func(depth as u32, game);
         running_total += nodes;
         assert_eq!(nodes, expected_nodes, "Mismatch at depth {}", depth);
-        println!("Test {}: Depth {}: Success! Expected {} nodes, got {}", test_number, depth, expected_nodes, nodes);
+        // println!("Test {}: Depth {}: Success! Expected {} nodes, got {}", test_number, depth, expected_nodes, nodes);
     }
 
     let elapsed = now.elapsed();
