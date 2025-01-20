@@ -118,11 +118,12 @@ impl Game {
                     background_colour = "\x1b[48;5;149m";
                 }
             }
-            for m in self.possible_moves.clone() {
-                if i == m.to_square {
-                    background_colour = "\x1b[48;5;80m";
-                }
-            }
+            // Possible move highlighting:
+            // for m in self.possible_moves.clone() {
+            //     if i == m.to_square {
+            //         background_colour = "\x1b[48;5;80m";
+            //     }
+            // }
 
 
             temp.push_str(background_colour);
