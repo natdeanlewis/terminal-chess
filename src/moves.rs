@@ -213,16 +213,9 @@ pub fn pinned_pieces_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
 fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
     let mut possible_moves = generate_pseudolegal_moves_without_castling(game);
 
-    for piece in &game.pieces {
-        if piece.colour == game.active_colour && piece.piece_type == PieceType::King {
-            let from_square = bit_to_onebit_index(piece.bit);
-            match piece.piece_type {
-                PieceType::King => {
-                    possible_moves = add_castle_moves(from_square, possible_moves, game);
-                }
-                _ => ()
-            }
-        }
+    if let Some(king) = game.pieces.iter().find(|&p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+        let king_square = bit_to_onebit_index(king.bit);
+        possible_moves = add_castle_moves(king_square, possible_moves, game);
     }
 
     possible_moves
@@ -322,10 +315,6 @@ pub fn inactive_colour_in_check(game: &mut Game, king_square: usize) -> bool {
         return true;
     }
     false
-}
-
-pub fn square_under_threat(square_index: usize, opponent_moves: &Vec<Move>) -> bool {
-    return opponent_moves.iter().any(|m| m.to_square == square_index)
 }
 
 pub fn make_move(game: &mut Game, move_to_make: Move) -> MoveToUnmake {
@@ -610,7 +599,7 @@ pub fn calculate_sliding_attacked_squares_including_own(attack_mask: u64, occupi
 fn perft_1() {
     let test_number = 1;
     let _perft_1_fen_str = _STARTING_FEN_STR;
-    let expected_node_counts = [1, 20, 400, 8_902];
+    let expected_node_counts = [1, 20, 400, 8_902, 197_281];
 
     let mut game = Game::initialize(_perft_1_fen_str);
     run_perft_test(&mut game, &expected_node_counts, test_number);
