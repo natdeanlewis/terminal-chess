@@ -44,6 +44,8 @@ test with println!s :`cargo test --release -- --nocapture`
   - make sure naming is consistent, square, piece index onebit_index, bit etc.
   - updates to pawn moves on 16 jan actualyl seem to have slowed down perft? is eval faster? confirm this though it's similar
   - make castling more efficient - done a bit, could do more
+  - use a hashmap to make looking up piece (&squares?) more efficient?
+
 - examples:
   - coords: e4
   - bit: 0000...0000000100000000000 (2^12)
