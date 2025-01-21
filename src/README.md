@@ -45,6 +45,7 @@ test with println!s :`cargo test --release -- --nocapture`
   - updates to pawn moves on 16 jan actualyl seem to have slowed down perft? is eval faster? confirm this though it's similar
   - make castling more efficient - done a bit, could do more
   - use a hashmap to make looking up piece (&squares?) more efficient?
+  - add a check bonus to move ordering?
 
 - examples:
   - coords: e4
