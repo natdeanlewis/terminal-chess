@@ -310,6 +310,19 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     new_possible_moves
 }
 
+pub fn generate_capture_moves(game: &mut Game) -> Vec<Move> {
+    let possible_moves = generate_moves(game);
+    let mut capture_moves = Vec::new();
+    for possible_move in possible_moves {
+        let to_bit = onebit_index_to_bit(possible_move.to_square);
+        if to_bit & game.get_occupied_bitboard() != 0 {
+            capture_moves.push(possible_move);
+        }
+    }
+
+    capture_moves
+}
+
 pub fn make_move(game: &mut Game, move_to_make: Move) -> MoveToUnmake {
     let start_bit = onebit_index_to_bit(move_to_make.from_square);
     let end_bit = onebit_index_to_bit(move_to_make.to_square);

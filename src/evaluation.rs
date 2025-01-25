@@ -1,5 +1,5 @@
 use crate::game::{Colour, Game, Piece, PieceType};
-use crate::moves::{generate_moves, make_move, unmake_move, Move};
+use crate::moves::{generate_capture_moves, generate_moves, make_move, unmake_move, Move};
 use crate::moves_pawn::generate_pawn_attacked_squares_including_own;
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 
@@ -146,8 +146,7 @@ fn piece_value(piece_type: PieceType) -> i32 {
         PieceType::King => 20_000,
     }
 }
-fn order_moves(game: &mut Game) -> Vec<Move> {
-    let possible_moves = generate_moves(game);
+fn order_moves(moves: Vec<Move>, game: &mut Game) -> Vec<Move> {
     let mut ordered_moves: Vec<(Move, i32)> = Vec::new();  // Vector to store moves and their respective scores
     let mut opponent_pawn_attacked_squares = 0u64;
     let opponent_colour = match game.active_colour {
@@ -167,7 +166,7 @@ fn order_moves(game: &mut Game) -> Vec<Move> {
         }
     }
 
-    for unordered_move in possible_moves.iter() {
+    for unordered_move in moves.iter() {
         let mut move_score_guess = 0;
         if let Some(moving_piece) = game.pieces.iter().find(|&p| p.bit == onebit_index_to_bit(unordered_move.from_square) && !p.taken) {
             if let Some(captured_piece) = game.pieces.iter().find(|&p| p.bit == onebit_index_to_bit(unordered_move.to_square) && !p.taken) {
@@ -194,13 +193,13 @@ fn search(game: &mut Game, depth: u32, mut alpha: f64, mut beta: f64) -> (f64, O
 
     // Base case: If depth is 0 or game over, return the evaluation of the game
     if depth == 0 || possible_moves.len() == 0 {
-        return (evaluate_game(game), None);
+        return (search_all_captures(game, alpha, beta), None);
     }
 
     let mut best_move: Option<Move> = None;
     let mut best_evaluation = f64::NEG_INFINITY;
 
-    possible_moves = order_moves(game);
+    possible_moves = order_moves(possible_moves, game);
 
     for i in 0..possible_moves.len() {
         let possible_move = possible_moves[i];
@@ -220,6 +219,31 @@ fn search(game: &mut Game, depth: u32, mut alpha: f64, mut beta: f64) -> (f64, O
         alpha = alpha.max(best_evaluation);
     }
     (best_evaluation, best_move)
+}
+
+fn search_all_captures(game: &mut Game, mut alpha: f64, mut beta: f64) -> f64 {
+    let evaluation = evaluate_game(game);
+    if evaluation >= beta {
+        return beta;
+    }
+    alpha = alpha.max(evaluation);
+
+    let mut capture_moves = generate_capture_moves(game);
+    capture_moves = order_moves(capture_moves, game);
+
+    for i in 0..capture_moves.len() {
+        let possible_move = capture_moves[i];
+        let move_to_unmake = make_move(game, possible_move);
+        let negative_evaluation = search_all_captures(game, -beta, -alpha);
+        let evaluation = -1f64 * negative_evaluation;
+        unmake_move(game, move_to_unmake);
+
+        if evaluation >= beta {
+            break;
+        }
+        alpha = alpha.max(evaluation);
+    }
+    evaluation
 }
 
 pub fn iterative_deepening_minimax(game: &mut Game, max_depth: u32) -> Option<Move> {
