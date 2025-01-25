@@ -188,7 +188,7 @@ fn order_moves(moves: Vec<Move>, game: &mut Game) -> Vec<Move> {
     return ordered_moves.into_iter().map(|(m, _)| m).collect();
 }
 
-fn search(game: &mut Game, depth: u32, mut alpha: f64, mut beta: f64) -> (f64, Option<Move>) {
+fn search(game: &mut Game, depth: u32, mut alpha: f64, beta: f64) -> (f64, Option<Move>) {
     let mut possible_moves = generate_moves(game);
 
     // Base case: If depth is 0 or game over, return the evaluation of the game
@@ -221,7 +221,7 @@ fn search(game: &mut Game, depth: u32, mut alpha: f64, mut beta: f64) -> (f64, O
     (best_evaluation, best_move)
 }
 
-fn search_all_captures(game: &mut Game, mut alpha: f64, mut beta: f64) -> f64 {
+fn search_all_captures(game: &mut Game, mut alpha: f64, beta: f64) -> f64 {
     let evaluation = evaluate_game(game);
     if evaluation >= beta {
         return beta;

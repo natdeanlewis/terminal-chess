@@ -47,7 +47,6 @@ pub struct Game {
     pub en_passant: Option<u64>,
     pub halfmove_clock: usize,
     pub fullmove_number: usize,
-    pub(crate) possible_moves: Vec<Move>,
     pub(crate) colour_in_check: Option<Colour>,
     pub(crate) last_move: Option<Move>,
     position_counts: HashMap<String, i32>,
@@ -119,7 +118,7 @@ impl Game {
                 }
             }
             // Possible move highlighting:
-            // for m in self.possible_moves.clone() {
+            // for m in generate_moves(&mut self.clone()) {
             //     if i == m.to_square {
             //         background_colour = "\x1b[48;5;80m";
             //     }
@@ -159,7 +158,6 @@ impl Game {
             en_passant: None,
             halfmove_clock: 0,
             fullmove_number: 1,
-            possible_moves: vec![],
             colour_in_check: None,
             last_move: None,
             players: 1,
