@@ -74,33 +74,37 @@ static KING_ENDGAME: [i32; 64] =
         -50,-30,-30,-30,-30,-30,-30,-50];
 
 
-fn evaluate_game(game: &mut Game, maximizing_colour: Colour) -> f64 {
+fn evaluate_game(game: &mut Game) -> f64 {
     let mut evaluation = 0;
-    let pieces_remaining = game.pieces.iter_mut().filter(|p| !p.taken);
-    let is_endgame = pieces_remaining.count() < 5;
-    for piece in &game.pieces {
-        if !piece.taken {
-            if piece.colour == maximizing_colour {
-                evaluation += piece_evaluation(&piece, is_endgame);
-            } else {
-                evaluation -= piece_evaluation(&piece, is_endgame);
-            }
-        }
-    }
-
     let check_evaluation;
+    let possible_moves = generate_moves(game);
     if let Some(colour_in_check) = game.colour_in_check {
-        if game.possible_moves.len() == 0 {
+        if possible_moves.len() == 0 {
             // Checkmate
             check_evaluation = 10000;
         } else {
             // Check
             check_evaluation = 50;
         }
-        if colour_in_check == maximizing_colour {
+        if colour_in_check == game.active_colour {
             evaluation -= check_evaluation
         } else {
             evaluation += check_evaluation
+        }
+    } else if possible_moves.len() == 0 {
+        // Draw
+        return 0f64
+    }
+
+    let pieces_remaining = game.pieces.iter_mut().filter(|p| !p.taken);
+    let is_endgame = pieces_remaining.count() < 5;
+    for piece in &game.pieces {
+        if !piece.taken {
+            if piece.colour == game.active_colour {
+                evaluation += piece_evaluation(&piece, is_endgame);
+            } else {
+                evaluation -= piece_evaluation(&piece, is_endgame);
+            }
         }
     }
 
@@ -143,6 +147,7 @@ fn piece_value(piece_type: PieceType) -> i32 {
     }
 }
 fn order_moves(game: &mut Game) -> Vec<Move> {
+    let possible_moves = generate_moves(game);
     let mut ordered_moves: Vec<(Move, i32)> = Vec::new();  // Vector to store moves and their respective scores
     let mut opponent_pawn_attacked_squares = 0u64;
     let opponent_colour = match game.active_colour {
@@ -162,7 +167,7 @@ fn order_moves(game: &mut Game) -> Vec<Move> {
         }
     }
 
-    for unordered_move in game.possible_moves.iter() {
+    for unordered_move in possible_moves.iter() {
         let mut move_score_guess = 0;
         if let Some(moving_piece) = game.pieces.iter().find(|&p| p.bit == onebit_index_to_bit(unordered_move.from_square) && !p.taken) {
             if let Some(captured_piece) = game.pieces.iter().find(|&p| p.bit == onebit_index_to_bit(unordered_move.to_square) && !p.taken) {
@@ -183,70 +188,47 @@ fn order_moves(game: &mut Game) -> Vec<Move> {
     ordered_moves.sort_by(|a, b| b.1.cmp(&a.1));
     return ordered_moves.into_iter().map(|(m, _)| m).collect();
 }
-fn minimax(game: &mut Game, depth: u32, maximizing_player: bool, maximizing_colour: Colour, mut alpha: f64, mut beta: f64) -> (f64, Option<Move>) {
+
+fn search(game: &mut Game, depth: u32, mut alpha: f64, mut beta: f64) -> (f64, Option<Move>) {
+    let mut possible_moves = generate_moves(game);
+
     // Base case: If depth is 0 or game over, return the evaluation of the game
-    if depth == 0 || game.possible_moves.len() == 0 {
-        return (evaluate_game(game, maximizing_colour), None);
+    if depth == 0 || possible_moves.len() == 0 {
+        return (evaluate_game(game), None);
     }
 
     let mut best_move: Option<Move> = None;
-    let mut best_evaluation: f64;
+    let mut best_evaluation = f64::NEG_INFINITY;
 
-    game.possible_moves = order_moves(game);
+    possible_moves = order_moves(game);
 
-    if maximizing_player {
-        best_evaluation = f64::NEG_INFINITY;
-        for i in 0..game.possible_moves.len() {
-            let possible_move = game.possible_moves[i];
-            let move_to_unmake = make_move(game, possible_move);
-            game.possible_moves = generate_moves(game);
-            let (evaluation, _) = minimax(game, depth - 1, false, maximizing_colour, alpha, beta);
-            unmake_move(game, move_to_unmake);
-            game.possible_moves = generate_moves(game);
+    for i in 0..possible_moves.len() {
+        let possible_move = possible_moves[i];
+        let move_to_unmake = make_move(game, possible_move);
+        let (negative_evaluation, _) = search(game, depth - 1, -beta, -alpha);
+        let evaluation = -1f64 * negative_evaluation;
+        unmake_move(game, move_to_unmake);
 
-            if evaluation > best_evaluation {
-                best_evaluation = evaluation;
-                best_move = Some(possible_move);
-            }
-
-            if best_evaluation >= beta {
-                break;
-            }
-            alpha = alpha.max(best_evaluation);
+        if evaluation > best_evaluation {
+            best_evaluation = evaluation;
+            best_move = Some(possible_move);
         }
 
-    } else {
-        best_evaluation = f64::INFINITY;
-        for i in 0..game.possible_moves.len() {
-            let possible_move = game.possible_moves[i];
-            let move_to_unmake = make_move(game, possible_move);
-            game.possible_moves = generate_moves(game);
-            let (evaluation, _) = minimax(game, depth - 1, true, maximizing_colour, alpha, beta);
-            unmake_move(game, move_to_unmake);
-            game.possible_moves = generate_moves(game);
-
-            if evaluation < best_evaluation {
-                best_evaluation = evaluation;
-                best_move = Some(possible_move);
-            }
-
-            if best_evaluation <= alpha {
-                break;
-            }
-            beta = beta.min(best_evaluation);
+        if best_evaluation >= beta {
+            break;
         }
+        alpha = alpha.max(best_evaluation);
     }
-
     (best_evaluation, best_move)
 }
 
 pub fn iterative_deepening_minimax(game: &mut Game, max_depth: u32) -> Option<Move> {
     let mut best_move: Option<Move> = None;
     let mut best_evaluation: f64;
-
+    
     for depth in 1..=max_depth {
         best_evaluation = f64::NEG_INFINITY;
-        let (evaluation, best) = minimax(game, depth, true, game.active_colour, f64::NEG_INFINITY, f64::INFINITY);
+        let (evaluation, best) = search(game, depth, f64::NEG_INFINITY, f64::INFINITY);
         // Store the best move if evaluation improves
         if evaluation > best_evaluation {
             best_move = best;

@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::io;
 use std::io::Write;
 use crate::game::{Colour, Game, Piece, PieceType, Square};
-use crate::moves::Move;
+use crate::moves::{generate_moves, Move};
 
 static MOD67TABLE: [usize; 67] = [
     64, 0, 1, 39, 2, 15, 40, 23,
@@ -182,9 +182,10 @@ pub fn parse_FEN_row(row: &str, mut piece_index: usize, mut onebit_index: usize)
     (pieces, squares)
 }
 
-pub fn parse_algebraic_move(move_input: &str, game: &Game) -> Option<Move> {
+pub fn parse_algebraic_move(move_input: &str, game: &mut Game) -> Option<Move> {
     let mut possible_matches = vec![];
-    for possible_move in game.possible_moves.clone() {
+    let possible_moves = generate_moves(game);
+    for possible_move in possible_moves {
         if move_to_ambiguous_algebraic_notation(game, possible_move) == Some(move_input.to_owned().to_ascii_lowercase()) {
             possible_matches.push(possible_move);
         }

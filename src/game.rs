@@ -344,7 +344,7 @@ pub fn game_loop(mut game: Game) {
     let fen_string = Game::write_FEN_without_move_counts(&game);
     *game.position_counts.entry(fen_string.clone()).or_insert(0) += 1;
 
-    game.possible_moves = generate_moves(&mut game);
+    let mut possible_moves = generate_moves(&mut game);
     print_board(&game);
 
     loop {
@@ -361,7 +361,7 @@ pub fn game_loop(mut game: Game) {
             Colour::Black => Colour::White,
         };
 
-        if game.possible_moves.len() == 0 {
+        if possible_moves.len() == 0 {
             if game.colour_in_check == Some(game.active_colour) {
                 println!{"Checkmate. {:?} wins.", inactive_colour};
             } else {
@@ -380,7 +380,7 @@ pub fn game_loop(mut game: Game) {
             if let Some(best_move) = iterative_deepening_minimax(&mut game, max_depth) {
                 make_move(&mut game, best_move);
                 game.last_move = Some(best_move);
-                game.possible_moves = generate_moves(&mut game);
+                possible_moves = generate_moves(&mut game);
                 print_board(&game);
 
                 let fen_string = Game::write_FEN_without_move_counts(&game);
@@ -400,12 +400,12 @@ pub fn game_loop(mut game: Game) {
             io::stdin().read_line(&mut move_input).unwrap();
             move_input = move_input.trim().to_string();
 
-            if let Some(input_move) = parse_algebraic_move(&move_input, &game) {
+            if let Some(input_move) = parse_algebraic_move(&move_input, &mut game) {
                 let start_bit = onebit_index_to_bit(input_move.from_square);
                 if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
                     make_move(&mut game, input_move);
                     game.last_move = Some(input_move);
-                    game.possible_moves = generate_moves(&mut game);
+                    possible_moves = generate_moves(&mut game);
                     print_board(&game);
 
                     let fen_string = Game::write_FEN_without_move_counts(&game);
