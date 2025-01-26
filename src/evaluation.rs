@@ -211,7 +211,7 @@ fn search(game: &mut Game, depth: u32, mut alpha: f64, beta: f64) -> (f64, Optio
         unmake_move(game, move_to_unmake);
 
         if evaluation >= beta {
-            break
+            return (beta, None)
         }
 
         if evaluation > alpha {
@@ -243,7 +243,7 @@ fn search_all_captures(game: &mut Game, mut alpha: f64, beta: f64) -> f64 {
         if evaluation >= beta {
             return beta;
         }
-        
+
         if evaluation > alpha {
             alpha = evaluation;
         }
