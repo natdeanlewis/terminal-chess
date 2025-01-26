@@ -3,7 +3,6 @@ use core::f64;
 use crate::game::{Colour, Game, Piece, PieceType};
 use crate::moves::{generate_capture_moves, generate_moves, make_move, unmake_move, Move};
 use crate::moves_pawn::generate_pawn_attacked_squares_including_own;
-use crate::print_board;
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 
 static PAWN_PST: [i32; 64] =
