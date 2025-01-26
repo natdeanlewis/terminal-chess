@@ -46,6 +46,7 @@ test with println!s :`cargo test --release -- --nocapture`
   - make castling more efficient - done a bit, could do more
   - use a hashmap to make looking up piece (&squares?) more efficient?
   - add a check bonus to move ordering?
+  - force king to corner in endgame
 
 - examples:
   - coords: e4

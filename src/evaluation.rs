@@ -1,6 +1,9 @@
+use core::f64;
+
 use crate::game::{Colour, Game, Piece, PieceType};
 use crate::moves::{generate_capture_moves, generate_moves, make_move, unmake_move, Move};
 use crate::moves_pawn::generate_pawn_attacked_squares_including_own;
+use crate::print_board;
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 
 static PAWN_PST: [i32; 64] =
@@ -197,7 +200,6 @@ fn search(game: &mut Game, depth: u32, mut alpha: f64, beta: f64) -> (f64, Optio
     }
 
     let mut best_move: Option<Move> = None;
-    let mut best_evaluation = f64::NEG_INFINITY;
 
     possible_moves = order_moves(possible_moves, game);
 
@@ -208,17 +210,17 @@ fn search(game: &mut Game, depth: u32, mut alpha: f64, beta: f64) -> (f64, Optio
         let evaluation = -1f64 * negative_evaluation;
         unmake_move(game, move_to_unmake);
 
-        if evaluation > best_evaluation {
-            best_evaluation = evaluation;
-            best_move = Some(possible_move);
+        if evaluation >= beta {
+            break
         }
 
-        if best_evaluation >= beta {
-            break;
+        if evaluation > alpha {
+            alpha = evaluation;
+            best_move = Some(possible_move);
         }
-        alpha = alpha.max(best_evaluation);
     }
-    (best_evaluation, best_move)
+
+    (alpha, best_move)
 }
 
 fn search_all_captures(game: &mut Game, mut alpha: f64, beta: f64) -> f64 {
@@ -239,11 +241,15 @@ fn search_all_captures(game: &mut Game, mut alpha: f64, beta: f64) -> f64 {
         unmake_move(game, move_to_unmake);
 
         if evaluation >= beta {
-            break;
+            return beta;
         }
-        alpha = alpha.max(evaluation);
+        
+        if evaluation > alpha {
+            alpha = evaluation;
+        }
     }
-    evaluation
+    
+    alpha
 }
 
 pub fn iterative_deepening_minimax(game: &mut Game, max_depth: u32) -> Option<Move> {
