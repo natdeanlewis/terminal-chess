@@ -3,7 +3,7 @@ use std::cmp;
 use crate::game::{Colour, Game, Piece, PieceType};
 use crate::moves::{generate_capture_moves, generate_moves, make_move, unmake_move, Move};
 use crate::moves_pawn::generate_pawn_attacked_squares_including_own;
-use crate::utils::{bit_to_onebit_index, onebit_index_to_bit, onebit_index_to_coords};
+use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
 
 static PAWN_PST: [i32; 64] =
     [0,  0,  0,  0,  0,  0,  0,  0,
@@ -81,7 +81,7 @@ fn evaluate_game(game: &mut Game) -> f64 {
 
     let mut evaluation = 0;
     let possible_moves = generate_moves(game);
-    if let Some(colour_in_check) = game.colour_in_check {
+    if let Some(_colour_in_check) = game.colour_in_check {
         if possible_moves.len() == 0 {
             // Checkmate
             return -100f64;
