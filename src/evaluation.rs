@@ -3,7 +3,7 @@ use std::cmp;
 use crate::game::{Colour, Game, Piece, PieceType};
 use crate::moves::{generate_capture_moves, generate_moves, make_move, unmake_move, Move};
 use crate::moves_pawn::generate_pawn_attacked_squares_including_own;
-use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
+use crate::utils::{bit_to_onebit_index, onebit_index_to_bit, onebit_index_to_coords};
 
 static PAWN_PST: [i32; 64] =
     [0,  0,  0,  0,  0,  0,  0,  0,
@@ -78,21 +78,14 @@ static KING_ENDGAME: [i32; 64] =
 
 fn evaluate_game(game: &mut Game) -> f64 {
     let mut evaluation = 0;
-    let check_evaluation;
     let possible_moves = generate_moves(game);
     if let Some(colour_in_check) = game.colour_in_check {
         if possible_moves.len() == 0 {
             // Checkmate
-            return 100f64;
+            return -100f64;
         } else {
             // Check
-            check_evaluation = 50;
-        }
-        if colour_in_check == game.active_colour {
-            evaluation -= check_evaluation
-        } else {
-            // TODO: remove as can't be reached?
-            evaluation += check_evaluation
+            evaluation -= 50;
         }
     } else if possible_moves.len() == 0 {
         // Draw
@@ -275,6 +268,10 @@ pub fn iterative_deepening_minimax(game: &mut Game, max_depth: u32) -> Option<Mo
         // Store the best move if evaluation improves
         if evaluation > best_evaluation {
             best_move = best;
+            if evaluation == 100f64 {
+                // If a line results in checkmate for the active colour, stop searching
+                break
+            }
         }
     }
 
