@@ -225,7 +225,17 @@ impl Game {
             Ok(num) => game.fullmove_number = num,
             Err(_) => panic!("Invalid fullmove: '{}'", fullmove_number),
         }
-        // TODO: set colour_in_check if in check
+
+        if let Some(black_king) = game.pieces.iter().find(|&p| p.piece_type == PieceType::King && p.colour == Colour::Black) {
+            if black_king.bit & squares_attacked_by_colour_bitboard(&game, Colour::White) != 0 {
+                game.colour_in_check = Some(Colour::Black);
+            }
+        } else if let Some(white_king) = game.pieces.iter().find(|&p| p.piece_type == PieceType::King && p.colour == Colour::White) {
+            if white_king.bit & squares_attacked_by_colour_bitboard(&game, Colour::Black) != 0 {
+                game.colour_in_check = Some(Colour::White);
+            }
+        }
+
         game
     }
 
