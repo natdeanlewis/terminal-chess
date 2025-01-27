@@ -90,7 +90,7 @@ fn evaluate_game(game: &mut Game) -> f64 {
             evaluation -= 50;
         }
     } else if possible_moves.len() == 0 {
-        // Draw
+        // Stalemate
         return 0f64
     }
 
@@ -211,6 +211,14 @@ fn order_moves(moves: Vec<Move>, game: &mut Game) -> Vec<Move> {
 
 fn search(game: &mut Game, depth: u32, mut alpha: f64, beta: f64) -> (f64, Option<Move>) {
     let mut possible_moves = generate_moves(game);
+
+    // Threefold repetition draw
+    let fen_string = Game::write_FEN_without_move_counts(game);
+    if let Some(position_count) = game.position_counts.get(&fen_string) {
+        if *position_count >= 3 {
+            return (0f64, None)
+        }
+    }
 
     // Base case: If depth is 0 or game over, return the evaluation of the game
     if depth == 0 || possible_moves.len() == 0 {

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::time::Instant;
 use crate::moves_bishop::{generate_bishop_attacked_squares_including_own, generate_bishop_moves, generate_bishop_pinned_piece, generate_bishop_pinned_ray};
 use crate::game::{CastlingRights, Game, PieceType, Square};
@@ -31,6 +32,7 @@ pub struct MoveToUnmake {
     pub previous_castled_rook_piece_index: Option<usize>,
     pub previous_castled_rook_piece_from_square: Option<usize>,
     pub previous_castled_rook_piece_to_square: Option<usize>,
+    pub previous_position_counts: HashMap<String, i32>,
 }
 
 pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move> {
@@ -388,6 +390,7 @@ pub fn unmake_move(game: &mut Game, move_to_unmake: MoveToUnmake) {
         game.en_passant = move_to_unmake.previous_en_passant;
         game.colour_in_check = move_to_unmake.previous_colour_in_check;
         game.last_move = move_to_unmake.previous_last_move;
+        game.position_counts = move_to_unmake.previous_position_counts;
 
         // Adjust fullmove counter if Black's turn is reverted
         if game.active_colour == Colour::White {
@@ -417,6 +420,7 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
         previous_castled_rook_piece_index: None,
         previous_castled_rook_piece_from_square: None,
         previous_castled_rook_piece_to_square: None,
+        previous_position_counts: game.position_counts.clone(),
     };
 
     let move_distance = (move_to_make.to_square as isize - move_to_make.from_square as isize).abs();
@@ -538,6 +542,11 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
         game.fullmove_number += 1;
     }
     game.active_colour = opponent_colour;
+
+
+    // Update position counts
+    let fen_string = Game::write_FEN_without_move_counts(game);
+    *game.position_counts.entry(fen_string.clone()).or_insert(0) += 1;
 
     move_to_unmake
 }
