@@ -1,5 +1,5 @@
 use core::f64;
-
+use std::cmp;
 use crate::game::{Colour, Game, Piece, PieceType};
 use crate::moves::{generate_capture_moves, generate_moves, make_move, unmake_move, Move};
 use crate::moves_pawn::generate_pawn_attacked_squares_including_own;
@@ -83,7 +83,7 @@ fn evaluate_game(game: &mut Game) -> f64 {
     if let Some(colour_in_check) = game.colour_in_check {
         if possible_moves.len() == 0 {
             // Checkmate
-            check_evaluation = 10000;
+            return 100f64;
         } else {
             // Check
             check_evaluation = 50;
@@ -91,6 +91,7 @@ fn evaluate_game(game: &mut Game) -> f64 {
         if colour_in_check == game.active_colour {
             evaluation -= check_evaluation
         } else {
+            // TODO: remove as can't be reached?
             evaluation += check_evaluation
         }
     } else if possible_moves.len() == 0 {
@@ -107,6 +108,19 @@ fn evaluate_game(game: &mut Game) -> f64 {
             } else {
                 evaluation -= piece_evaluation(&piece, is_endgame);
             }
+        }
+    }
+
+    if is_endgame {
+        if let Some(enemy_king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != game.active_colour) {
+            let enemy_king_square = bit_to_onebit_index(enemy_king.bit) as i32;
+            let enemy_king_rank = enemy_king_square / 8;
+            let enemy_king_file = enemy_king_square % 8;
+            let enemy_king_dist_to_centre_rank = cmp::max(3 - enemy_king_rank, enemy_king_rank - 4);
+            let enemy_king_dist_to_centre_file = cmp::max(3 - enemy_king_file, enemy_king_file - 4);
+            let enemy_king_combined_distance_to_centre = enemy_king_dist_to_centre_rank + enemy_king_dist_to_centre_file;
+
+            evaluation += 100 * enemy_king_combined_distance_to_centre;
         }
     }
 
