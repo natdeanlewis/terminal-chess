@@ -77,6 +77,8 @@ static KING_ENDGAME: [i32; 64] =
 
 
 fn evaluate_game(game: &mut Game) -> f64 {
+    // Positive evaluation is in favour of active colour
+
     let mut evaluation = 0;
     let possible_moves = generate_moves(game);
     if let Some(colour_in_check) = game.colour_in_check {
@@ -114,6 +116,16 @@ fn evaluate_game(game: &mut Game) -> f64 {
             let enemy_king_combined_distance_to_centre = enemy_king_dist_to_centre_rank + enemy_king_dist_to_centre_file;
 
             evaluation += 100 * enemy_king_combined_distance_to_centre;
+
+            if let Some(friendly_king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+                let friendly_king_square = bit_to_onebit_index(friendly_king.bit) as i32;
+                let friendly_king_rank = friendly_king_square / 8;
+                let friendly_king_file = friendly_king_square % 8;
+                let ranks_between_kings = (friendly_king_rank - enemy_king_rank).abs();
+                let files_between_kings = (friendly_king_file - enemy_king_file).abs();
+                let combined_distance_between_kings = ranks_between_kings + files_between_kings;
+                evaluation += 100 * (14 - combined_distance_between_kings);
+            }
         }
     }
 
