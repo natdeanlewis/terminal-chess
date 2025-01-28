@@ -348,7 +348,9 @@ impl Game {
 }
 
 pub fn game_loop(mut game: Game) {
-    let max_depth = 5;
+    let max_depth = 6;
+
+    // Update position counts with initial position
     let fen_string = Game::write_FEN_without_move_counts(&game);
     *game.position_counts.entry(fen_string.clone()).or_insert(0) += 1;
 
@@ -361,7 +363,6 @@ pub fn game_loop(mut game: Game) {
             if *position_count >= 3 {
                 println!{"Draw by threefold repetition."};
                 break
-
             }
         }
 

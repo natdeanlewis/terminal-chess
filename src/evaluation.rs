@@ -115,7 +115,7 @@ fn evaluate_game(game: &mut Game) -> f64 {
             let enemy_king_dist_to_centre_file = cmp::max(3 - enemy_king_file, enemy_king_file - 4);
             let enemy_king_combined_distance_to_centre = enemy_king_dist_to_centre_rank + enemy_king_dist_to_centre_file;
 
-            evaluation += 100 * enemy_king_combined_distance_to_centre;
+            evaluation += 25 * enemy_king_combined_distance_to_centre;
 
             if let Some(friendly_king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
                 let friendly_king_square = bit_to_onebit_index(friendly_king.bit) as i32;
@@ -124,7 +124,7 @@ fn evaluate_game(game: &mut Game) -> f64 {
                 let ranks_between_kings = (friendly_king_rank - enemy_king_rank).abs();
                 let files_between_kings = (friendly_king_file - enemy_king_file).abs();
                 let combined_distance_between_kings = ranks_between_kings + files_between_kings;
-                evaluation += 100 * (14 - combined_distance_between_kings);
+                evaluation += 25 * (14 - combined_distance_between_kings);
             }
         }
     }

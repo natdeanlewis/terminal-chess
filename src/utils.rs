@@ -39,8 +39,8 @@ pub static _LEGAL_TEST_6_FEN_STR: &str = "4k3/8/4r3/8/8/4Q3/8/2K5 b - - 0 1";
 pub static _LEGAL_TEST_7_FEN_STR: &str = "8/8/8/8/k2Pp2Q/8/8/3K4 b - d3 0 1";
 pub static _ENDGAME_1_FEN_STR: &str = "1r6/2r5/3k4/8/K7/8/8/8 w - - 0 1";
 pub static _ENDGAME_2_FEN_STR: &str = "3r4/3r4/3k4/8/3K4/8/8/8 w - - 0 1";
+pub static _ENDGAME_3_FEN_STR: &str = "3r4/8/3k4/8/3K4/8/8/8 w - - 0 1";
 pub static _ENDGAME_4_FEN_STR: &str = "8/3K4/4P3/8/8/8/6k1/7q w - - 0 1";
-pub static _ENDGAME_5_FEN_STR: &str = "8/3K4/4P3/8/8/8/6k1/7q w - - 0 1";
 
 pub fn get_players_loop() -> i8 {
     loop {
