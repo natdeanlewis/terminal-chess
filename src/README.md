@@ -48,6 +48,8 @@ test with println!s :`cargo test --release -- --nocapture`
   - add a check bonus to move ordering?
   - force king to corner in endgame
   - balance evaluation of checks/moving king to corner etc vs value of actual pieces - don't sacrifice pieces for temporary gain if doesn't lead to checkmate
+  - make perft more efficient - probably 10x improvement to be had by not cloning the position_counts for previous_position_counts
+
 - examples:
   - coords: e4
   - bit: 0000...0000000100000000000 (2^12)
