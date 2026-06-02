@@ -348,7 +348,7 @@ impl Game {
 }
 
 pub fn game_loop(mut game: Game) {
-    let max_depth = 6;
+    let max_depth = 4;
 
     // Update position counts with initial position
     let fen_string = Game::write_FEN_without_move_counts(&game);
