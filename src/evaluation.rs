@@ -283,6 +283,10 @@ fn search(game: &mut Game, depth: u32, mut alpha: f64, beta: f64) -> (f64, Optio
     (alpha, best_move)
 }
 
+pub fn search_to_depth(game: &mut Game, depth: u32) -> (f64, Option<Move>) {
+    search(game, depth, f64::NEG_INFINITY, f64::INFINITY)
+}
+
 fn search_all_captures(game: &mut Game, mut alpha: f64, beta: f64) -> f64 {
     let evaluation = evaluate_game(game);
     if evaluation >= beta {

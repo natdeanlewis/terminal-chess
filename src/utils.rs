@@ -47,6 +47,15 @@ pub static _ENDGAME_2_FEN_STR: &str = "3r4/3r4/3k4/8/3K4/8/8/8 w - - 0 1";
 pub static _ENDGAME_3_FEN_STR: &str = "3r4/8/3k4/8/3K4/8/8/8 w - - 0 1";
 pub static _ENDGAME_4_FEN_STR: &str = "8/3K4/4P3/8/8/8/6k1/7q w - - 0 1";
 
+pub fn players_from_first_input(first_input: &str) -> i8 {
+    match first_input {
+        "0" => 0,
+        "1" => 1,
+        "2" => 2,
+        _ => get_players_loop(),
+    }
+}
+
 pub fn get_players_loop() -> i8 {
     loop {
         print!("How many players (0, 1 or 2): ");
@@ -131,6 +140,43 @@ pub fn onebit_index_to_coords(onebit_index: usize) -> String {
     let column = onebit_index % 8;
     let row = onebit_index / 8 + 1;
     format!("{}{}", COL_MAP[column], row)
+}
+
+pub fn move_to_uci_notation(possible_move: Move) -> String {
+    let mut notation = onebit_index_to_coords(possible_move.from_square);
+    notation.push_str(&onebit_index_to_coords(possible_move.to_square));
+    if let Some(promotion) = possible_move.promotion {
+        notation.push(match promotion {
+            PieceType::Queen => 'q',
+            PieceType::Rook => 'r',
+            PieceType::Bishop => 'b',
+            PieceType::Knight => 'n',
+            PieceType::Pawn | PieceType::King => 'q',
+        });
+    }
+    notation
+}
+
+pub fn uci_notation_to_move(uci_notation_move: &str) -> Result<Move, String> {
+    if uci_notation_move.len() < 4 {
+        return Err(format!("Invalid UCI move: '{}'", uci_notation_move));
+    }
+    let from_square = coords_to_onebit_index(&uci_notation_move[0..2])?;
+    let to_square = coords_to_onebit_index(&uci_notation_move[2..4])?;
+    let promotion = match uci_notation_move.chars().nth(4) {
+        Some('q') => Some(PieceType::Queen),
+        Some('r') => Some(PieceType::Rook),
+        Some('b') => Some(PieceType::Bishop),
+        Some('n') => Some(PieceType::Knight),
+        Some(other) => return Err(format!("Invalid promotion piece: '{}'", other)),
+        None => None,
+    };
+    Ok(Move {
+        from_square,
+        to_square,
+        promotion,
+        capture_square: None,
+    })
 }
 
 pub fn onebit_index_to_bit(onebit_index: usize) -> u64 {
