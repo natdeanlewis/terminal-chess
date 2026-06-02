@@ -1,17 +1,17 @@
+use crate::evaluation::iterative_deepening_minimax;
+use crate::moves::*;
+use crate::utils::*;
 use bitflags::bitflags;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::hash::Hash;
 use std::io;
 use std::io::Write;
-use crate::evaluation::iterative_deepening_minimax;
-use crate::utils::*;
-use crate::moves::*;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Colour {
     White,
-    Black
+    Black,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -21,7 +21,7 @@ pub enum PieceType {
     Knight,
     Rook,
     Queen,
-    King
+    King,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -50,7 +50,7 @@ pub struct Game {
     pub(crate) colour_in_check: Option<Colour>,
     pub(crate) last_move: Option<Move>,
     pub position_counts: HashMap<String, i32>,
-    pub players: i8
+    pub players: i8,
 }
 
 bitflags! {
@@ -75,7 +75,8 @@ impl Piece {
                 PieceType::Rook => "\x1b[97m ♜ ",
                 PieceType::Queen => "\x1b[97m ♛ ",
                 PieceType::King => "\x1b[97m ♚ ",
-            }.to_string();
+            }
+            .to_string();
             result
         } else {
             let result = match self.piece_type {
@@ -85,12 +86,12 @@ impl Piece {
                 PieceType::Rook => "\x1b[30m ♜ ",
                 PieceType::Queen => "\x1b[30m ♛ ",
                 PieceType::King => "\x1b[30m ♚ ",
-            }.to_string();
+            }
+            .to_string();
             result
         }
     }
 }
-
 
 impl Game {
     pub fn initialize(fen_str: &str) -> Game {
@@ -106,7 +107,11 @@ impl Game {
                 temp.push_str(&format!("{} ", (i / 8) + 1));
             }
 
-            let mut background_colour = if i % 2 == (i / 8) % 2 { "\x1b[48;5;130m" } else { "\x1b[48;5;172m" };
+            let mut background_colour = if i % 2 == (i / 8) % 2 {
+                "\x1b[48;5;130m"
+            } else {
+                "\x1b[48;5;172m"
+            };
 
             // Last move highlighting
             if let Some(last_move) = self.last_move {
@@ -124,13 +129,9 @@ impl Game {
             //     }
             // }
 
-
             temp.push_str(background_colour);
             match square {
-                Square::Empty => {
-
-                    temp.push_str("   ")
-                },
+                Square::Empty => temp.push_str("   "),
                 Square::Occupied(idx) => temp.push_str(&self.pieces[*idx].to_string()),
             }
             let colour_end = "\x1b[0m";
@@ -211,7 +212,7 @@ impl Game {
             s => match coords_to_bit(s) {
                 Err(msg) => panic!("{}", msg),
                 Ok(bit) => game.en_passant = Some(bit),
-            }
+            },
         }
 
         let (halfmove_clock, rest) = split_on(rest, ' ');
@@ -226,11 +227,19 @@ impl Game {
             Err(_) => panic!("Invalid fullmove: '{}'", fullmove_number),
         }
 
-        if let Some(black_king) = game.pieces.iter().find(|&p| p.piece_type == PieceType::King && p.colour == Colour::Black) {
+        if let Some(black_king) = game
+            .pieces
+            .iter()
+            .find(|&p| p.piece_type == PieceType::King && p.colour == Colour::Black)
+        {
             if black_king.bit & squares_attacked_by_colour_bitboard(&game, Colour::White) != 0 {
                 game.colour_in_check = Some(Colour::Black);
             }
-        } else if let Some(white_king) = game.pieces.iter().find(|&p| p.piece_type == PieceType::King && p.colour == Colour::White) {
+        } else if let Some(white_king) = game
+            .pieces
+            .iter()
+            .find(|&p| p.piece_type == PieceType::King && p.colour == Colour::White)
+        {
             if white_king.bit & squares_attacked_by_colour_bitboard(&game, Colour::Black) != 0 {
                 game.colour_in_check = Some(Colour::White);
             }
@@ -246,9 +255,7 @@ impl Game {
         let mut row_temp = "".to_owned();
         for (i, square) in game.squares.iter().enumerate() {
             match square {
-                Square::Empty => {
-                    consecutive_empty_squares += 1
-                },
+                Square::Empty => consecutive_empty_squares += 1,
                 Square::Occupied(piece_index) => {
                     if consecutive_empty_squares > 0 {
                         row_temp.push_str(&consecutive_empty_squares.to_string());
@@ -256,7 +263,7 @@ impl Game {
                     let piece = &game.pieces[*piece_index];
                     let lowercase_piece_char = match piece.piece_type {
                         PieceType::Pawn => 'p',
-                        PieceType::Knight =>  'n',
+                        PieceType::Knight => 'n',
                         PieceType::Bishop => 'b',
                         PieceType::Rook => 'r',
                         PieceType::Queen => 'q',
@@ -300,19 +307,24 @@ impl Game {
             if game.castling_rights.contains(CastlingRights::WHITEKINGSIDE) {
                 fen_string.push('K')
             }
-            if game.castling_rights.contains(CastlingRights::WHITEQUEENSIDE) {
+            if game
+                .castling_rights
+                .contains(CastlingRights::WHITEQUEENSIDE)
+            {
                 fen_string.push('Q')
             }
             if game.castling_rights.contains(CastlingRights::BLACKKINGSIDE) {
                 fen_string.push('k')
             }
-            if game.castling_rights.contains(CastlingRights::BLACKQUEENSIDE) {
+            if game
+                .castling_rights
+                .contains(CastlingRights::BLACKQUEENSIDE)
+            {
                 fen_string.push('q')
             }
         }
 
         fen_string.push(' ');
-
 
         if let Some(en_passant) = game.en_passant {
             for char in bit_to_coords(en_passant).unwrap().chars() {
@@ -361,16 +373,38 @@ pub fn game_loop(mut game: Game) {
         let fen_string = Game::write_FEN_without_move_counts(&game);
         if let Some(position_count) = game.position_counts.get(&fen_string) {
             if *position_count >= 3 {
-                println!{"Draw by threefold repetition."};
-                break
+                println! {"Draw by threefold repetition."};
+                break;
             }
         }
 
         // if both sides have only a king with knights or bishops
-        if game.pieces.iter().filter(|piece| !piece.taken && [PieceType::Queen, PieceType::Rook, PieceType::Pawn].contains(&piece.piece_type)).count() == 0 {
-            if game.pieces.iter().filter(|piece| piece.colour == Colour::White && !piece.taken).count() <= 2 && game.pieces.iter().filter(|piece| piece.colour == Colour::Black && !piece.taken).count() <= 2 {
-                println!{"Draw."};
-                break
+        if game
+            .pieces
+            .iter()
+            .filter(|piece| {
+                !piece.taken
+                    && [PieceType::Queen, PieceType::Rook, PieceType::Pawn]
+                        .contains(&piece.piece_type)
+            })
+            .count()
+            == 0
+        {
+            if game
+                .pieces
+                .iter()
+                .filter(|piece| piece.colour == Colour::White && !piece.taken)
+                .count()
+                <= 2
+                && game
+                    .pieces
+                    .iter()
+                    .filter(|piece| piece.colour == Colour::Black && !piece.taken)
+                    .count()
+                    <= 2
+            {
+                println! {"Draw."};
+                break;
             }
         }
 
@@ -381,17 +415,20 @@ pub fn game_loop(mut game: Game) {
 
         if possible_moves.len() == 0 {
             if game.colour_in_check == Some(game.active_colour) {
-                println!{"Checkmate. {:?} wins.", inactive_colour};
+                println! {"Checkmate. {:?} wins.", inactive_colour};
             } else {
-                println!{"Stalemate."};
+                println! {"Stalemate."};
             }
-            break
+            break;
         }
         if game.colour_in_check == Some(game.active_colour) {
             println!("Check.");
         }
 
-        println!("Move {:?} ({:?}):", game.fullmove_number, game.active_colour);
+        println!(
+            "Move {:?} ({:?}):",
+            game.fullmove_number, game.active_colour
+        );
 
         if game.players == 0 || (game.players == 1 && game.active_colour == Colour::Black) {
             println!("Thinking...");
@@ -410,7 +447,9 @@ pub fn game_loop(mut game: Game) {
 
             if let Some(input_move) = parse_algebraic_move(&move_input, &mut game) {
                 let start_bit = onebit_index_to_bit(input_move.from_square);
-                if let Some(_start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
+                if let Some(_start_piece_index) = game.pieces.iter().position(|p| {
+                    p.taken == false && p.bit == start_bit && p.colour == game.active_colour
+                }) {
                     make_move(&mut game, input_move);
                     game.last_move = Some(input_move);
                     possible_moves = generate_moves(&mut game);
@@ -421,6 +460,5 @@ pub fn game_loop(mut game: Game) {
                 }
             }
         }
-
     }
 }

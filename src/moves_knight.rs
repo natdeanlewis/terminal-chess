@@ -1,14 +1,13 @@
-use crate::game::{Game};
-use crate::moves::{Move};
-use lazy_static::lazy_static;
+use crate::game::Game;
+use crate::moves::Move;
 use crate::utils::bitboard_to_indices;
+use lazy_static::lazy_static;
 
 lazy_static! {
     static ref KNIGHT_MOVES: [u64; 64] = precompute_knight_move_bitboards();
 }
 
 pub fn generate_knight_moves(from_square: usize, game: &Game) -> Vec<Move> {
-
     let mut possible_moves = Vec::new();
 
     let valid_moves = generate_knight_attacked_squares_excluding_own(from_square, game);
@@ -48,8 +47,14 @@ fn precompute_knight_move_bitboards() -> [u64; 64] {
         let mut moves = 0u64;
 
         for (dr, df) in &[
-            (2, 1), (2, -1), (-2, 1), (-2, -1),
-            (1, 2), (1, -2), (-1, 2), (-1, -2),
+            (2, 1),
+            (2, -1),
+            (-2, 1),
+            (-2, -1),
+            (1, 2),
+            (1, -2),
+            (-1, 2),
+            (-1, -2),
         ] {
             let new_rank = rank as isize + dr;
             let new_file = file as isize + df;

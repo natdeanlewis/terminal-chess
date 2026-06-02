@@ -1,7 +1,10 @@
-use crate::game::{Game};
-use crate::moves::{calculate_sliding_attacked_squares_excluding_own, calculate_sliding_attacked_squares_including_own, Move};
-use crate::{bit_to_onebit_index};
-use crate::utils::{bitboard_to_indices};
+use crate::bit_to_onebit_index;
+use crate::game::Game;
+use crate::moves::{
+    calculate_sliding_attacked_squares_excluding_own,
+    calculate_sliding_attacked_squares_including_own, Move,
+};
+use crate::utils::bitboard_to_indices;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -34,16 +37,16 @@ pub fn generate_rook_pinned_ray(pinned_piece_bit: u64, game: &Game, king_bit: u6
             direction,
         );
         if pinned_piece_bit & moves_in_direction != 0 {
-            return moves_in_direction
+            return moves_in_direction;
         }
     }
-    return 0u64
+    return 0u64;
 }
 
 pub fn generate_rook_pinned_piece(from_square: usize, game: &Game, king_bit: u64) -> u64 {
     // // remove en passant pawn from occupied bitboard so en passant discovered checks are avoided
     // let mut occupied = game.get_occupied_bitboard();
-    
+
     // if let Some(en_passant_bit) = game.en_passant {
     //     let en_passant_pawn_bit: u64;
     //     match game.active_colour {
@@ -53,7 +56,7 @@ pub fn generate_rook_pinned_piece(from_square: usize, game: &Game, king_bit: u64
     //     occupied &= !en_passant_pawn_bit;
     //     print_bitboard(occupied);
     // }
-    
+
     let occupied = game.get_occupied_bitboard();
 
     for (direction, attack_masks) in ROOK_ATTACK_MASKS.iter().enumerate() {
@@ -67,7 +70,8 @@ pub fn generate_rook_pinned_piece(from_square: usize, game: &Game, king_bit: u64
         // get opposite direction rook attacks from king
         // 0 <-> 2 1 <-> 3
         let opposite_direction = (direction + 2) % 4;
-        let opposite_direction_attack_mask = ROOK_ATTACK_MASKS[opposite_direction][bit_to_onebit_index(king_bit)];
+        let opposite_direction_attack_mask =
+            ROOK_ATTACK_MASKS[opposite_direction][bit_to_onebit_index(king_bit)];
         let moves_in_opposite_direction = calculate_sliding_attacked_squares_including_own(
             opposite_direction_attack_mask,
             occupied,
@@ -76,12 +80,11 @@ pub fn generate_rook_pinned_piece(from_square: usize, game: &Game, king_bit: u64
 
         let overlap = moves_in_direction & moves_in_opposite_direction;
         if overlap != 0 {
-            return overlap
+            return overlap;
         }
     }
-    return 0u64
+    return 0u64;
 }
-
 
 pub fn generate_rook_attacked_squares_excluding_own(from_square: usize, game: &Game) -> u64 {
     let mut attacked_squares = 0u64;
@@ -93,7 +96,7 @@ pub fn generate_rook_attacked_squares_excluding_own(from_square: usize, game: &G
             attack_masks[from_square],
             occupied,
             direction,
-            own_pieces
+            own_pieces,
         );
 
         attacked_squares |= moves_in_direction;
@@ -118,7 +121,6 @@ pub fn generate_rook_moves(from_square: usize, game: &Game) -> Vec<Move> {
 
     possible_moves
 }
-
 
 fn precompute_rook_attack_masks() -> [[u64; 64]; 4] {
     let mut masks = [[0u64; 64]; 4];

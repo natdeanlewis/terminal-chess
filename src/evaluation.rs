@@ -1,80 +1,93 @@
-use core::f64;
-use std::cmp;
 use crate::game::{Colour, Game, Piece, PieceType};
 use crate::moves::{generate_capture_moves, generate_moves, make_move, unmake_move, Move};
 use crate::moves_pawn::generate_pawn_attacked_squares_including_own;
 use crate::utils::{bit_to_onebit_index, onebit_index_to_bit};
+use core::f64;
+use std::cmp;
 
-static PAWN_PST: [i32; 64] =
-    [0,  0,  0,  0,  0,  0,  0,  0,
-        50, 50, 50, 50, 50, 50, 50, 50,
-        10, 10, 20, 30, 30, 20, 10, 10,
-        5,  5, 10, 25, 25, 10,  5,  5,
-        0,  0,  0, 20, 20,  0,  0,  0,
-        5, -5,-10,  0,  0,-10, -5,  5,
-        5, 10, 10,-20,-20, 10, 10,  5,
-        0,  0,  0,  0,  0,  0,  0,  0];
+#[rustfmt::skip]
+static PAWN_PST: [i32; 64] = [
+     0,  0,  0,  0,  0,  0,  0,  0,
+    50, 50, 50, 50, 50, 50, 50, 50,
+    10, 10, 20, 30, 30, 20, 10, 10,
+     5,  5, 10, 25, 25, 10,  5,  5,
+     0,  0,  0, 20, 20,  0,  0,  0,
+     5, -5,-10,  0,  0,-10, -5,  5,
+     5, 10, 10,-20,-20, 10, 10,  5,
+     0,  0,  0,  0,  0,  0,  0,  0,
+];
 
-static KNIGHT_PST: [i32; 64] =
-    [-50,-40,-30,-30,-30,-30,-40,-50,
-        -40,-20,  0,  0,  0,  0,-20,-40,
-        -30,  0, 10, 15, 15, 10,  0,-30,
-        -30,  5, 15, 20, 20, 15,  5,-30,
-        -30,  0, 15, 20, 20, 15,  0,-30,
-        -30,  5, 10, 15, 15, 10,  5,-30,
-        -40,-20,  0,  5,  5,  0,-20,-40,
-        -50,-40,-30,-30,-30,-30,-40,-50];
+#[rustfmt::skip]
+static KNIGHT_PST: [i32; 64] = [
+    -50,-40,-30,-30,-30,-30,-40,-50,
+    -40,-20,  0,  0,  0,  0,-20,-40,
+    -30,  0, 10, 15, 15, 10,  0,-30,
+    -30,  5, 15, 20, 20, 15,  5,-30,
+    -30,  0, 15, 20, 20, 15,  0,-30,
+    -30,  5, 10, 15, 15, 10,  5,-30,
+    -40,-20,  0,  5,  5,  0,-20,-40,
+    -50,-40,-30,-30,-30,-30,-40,-50,
+];
 
-static BISHOP_PST: [i32; 64] =
-    [-20,-10,-10,-10,-10,-10,-10,-20,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -10,  0,  5, 10, 10,  5,  0,-10,
-        -10,  5,  5, 10, 10,  5,  5,-10,
-        -10,  0, 10, 10, 10, 10,  0,-10,
-        -10, 10, 10, 10, 10, 10, 10,-10,
-        -10,  5,  0,  0,  0,  0,  5,-10,
-        -20,-10,-10,-10,-10,-10,-10,-20];
+#[rustfmt::skip]
+static BISHOP_PST: [i32; 64] = [
+    -20,-10,-10,-10,-10,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5, 10, 10,  5,  0,-10,
+    -10,  5,  5, 10, 10,  5,  5,-10,
+    -10,  0, 10, 10, 10, 10,  0,-10,
+    -10, 10, 10, 10, 10, 10, 10,-10,
+    -10,  5,  0,  0,  0,  0,  5,-10,
+    -20,-10,-10,-10,-10,-10,-10,-20,
+];
 
-static ROOK_PST: [i32; 64] =
-    [0,  0,  0,  0,  0,  0,  0,  0,
-        5, 10, 10, 10, 10, 10, 10,  5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        0,  0,  0,  5,  5,  0,  0,  0];
+#[rustfmt::skip]
+static ROOK_PST: [i32; 64] = [
+     0,  0,  0,  0,  0,  0,  0,  0,
+     5, 10, 10, 10, 10, 10, 10,  5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+     0,  0,  0,  5,  5,  0,  0,  0,
+];
 
-static QUEEN_PST: [i32; 64] =
-    [-20,-10,-10, -5, -5,-10,-10,-20,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -10,  0,  5,  5,  5,  5,  0,-10,
-        -5,  0,  5,  5,  5,  5,  0, -5,
-        0,  0,  5,  5,  5,  5,  0, -5,
-        -10,  5,  5,  5,  5,  5,  0,-10,
-        -10,  0,  5,  0,  0,  0,  0,-10,
-        -20,-10,-10, -5, -5,-10,-10,-20];
+#[rustfmt::skip]
+static QUEEN_PST: [i32; 64] = [
+    -20,-10,-10, -5, -5,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5,  5,  5,  5,  0,-10,
+     -5,  0,  5,  5,  5,  5,  0, -5,
+      0,  0,  5,  5,  5,  5,  0, -5,
+    -10,  5,  5,  5,  5,  5,  0,-10,
+    -10,  0,  5,  0,  0,  0,  0,-10,
+    -20,-10,-10, -5, -5,-10,-10,-20,
+];
 
-static KING_MIDDLEGAME: [i32; 64] =
-    [-30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -20,-30,-30,-40,-40,-30,-30,-20,
-        -10,-20,-20,-20,-20,-20,-20,-10,
-        20, 20,  0,  0,  0,  0, 20, 20,
-        20, 30, 10,  0,  0, 10, 30, 20];
+#[rustfmt::skip]
+static KING_MIDDLEGAME: [i32; 64] = [
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -20,-30,-30,-40,-40,-30,-30,-20,
+    -10,-20,-20,-20,-20,-20,-20,-10,
+     20, 20,  0,  0,  0,  0, 20, 20,
+     20, 30, 10,  0,  0, 10, 30, 20,
+];
 
-static KING_ENDGAME: [i32; 64] =
-    [-50,-40,-30,-20,-20,-30,-40,-50,
-        -30,-20,-10,  0,  0,-10,-20,-30,
-        -30,-10, 20, 30, 30, 20,-10,-30,
-        -30,-10, 30, 40, 40, 30,-10,-30,
-        -30,-10, 30, 40, 40, 30,-10,-30,
-        -30,-10, 20, 30, 30, 20,-10,-30,
-        -30,-30,  0,  0,  0,  0,-30,-30,
-        -50,-30,-30,-30,-30,-30,-30,-50];
-
+#[rustfmt::skip]
+static KING_ENDGAME: [i32; 64] = [
+    -50,-40,-30,-20,-20,-30,-40,-50,
+    -30,-20,-10,  0,  0,-10,-20,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-10, 30, 40, 40, 30,-10,-30,
+    -30,-10, 30, 40, 40, 30,-10,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-30,  0,  0,  0,  0,-30,-30,
+    -50,-30,-30,-30,-30,-30,-30,-50,
+];
 
 fn evaluate_game(game: &mut Game) -> f64 {
     // Positive evaluation is in favour of active colour
@@ -91,7 +104,7 @@ fn evaluate_game(game: &mut Game) -> f64 {
         }
     } else if possible_moves.len() == 0 {
         // Stalemate
-        return 0f64
+        return 0f64;
     }
 
     let pieces_remaining = game.pieces.iter_mut().filter(|p| !p.taken);
@@ -107,17 +120,26 @@ fn evaluate_game(game: &mut Game) -> f64 {
     }
 
     if is_endgame {
-        if let Some(enemy_king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour != game.active_colour) {
+        if let Some(enemy_king) = game
+            .pieces
+            .iter()
+            .find(|p| p.piece_type == PieceType::King && p.colour != game.active_colour)
+        {
             let enemy_king_square = bit_to_onebit_index(enemy_king.bit) as i32;
             let enemy_king_rank = enemy_king_square / 8;
             let enemy_king_file = enemy_king_square % 8;
             let enemy_king_dist_to_centre_rank = cmp::max(3 - enemy_king_rank, enemy_king_rank - 4);
             let enemy_king_dist_to_centre_file = cmp::max(3 - enemy_king_file, enemy_king_file - 4);
-            let enemy_king_combined_distance_to_centre = enemy_king_dist_to_centre_rank + enemy_king_dist_to_centre_file;
+            let enemy_king_combined_distance_to_centre =
+                enemy_king_dist_to_centre_rank + enemy_king_dist_to_centre_file;
 
             evaluation += 25 * enemy_king_combined_distance_to_centre;
 
-            if let Some(friendly_king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+            if let Some(friendly_king) = game
+                .pieces
+                .iter()
+                .find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour)
+            {
                 let friendly_king_square = bit_to_onebit_index(friendly_king.bit) as i32;
                 let friendly_king_rank = friendly_king_square / 8;
                 let friendly_king_file = friendly_king_square % 8;
@@ -129,14 +151,14 @@ fn evaluate_game(game: &mut Game) -> f64 {
         }
     }
 
-    return evaluation as f64 / 100.0
+    return evaluation as f64 / 100.0;
 }
 
 fn king_positional_eval(piece_square: usize, is_endgame: bool) -> i32 {
     if is_endgame {
-        return KING_ENDGAME[piece_square]
+        return KING_ENDGAME[piece_square];
     } else {
-        return KING_MIDDLEGAME[piece_square]
+        return KING_MIDDLEGAME[piece_square];
     }
 }
 
@@ -153,7 +175,9 @@ fn piece_evaluation(piece: &Piece, is_endgame: bool) -> i32 {
         PieceType::Knight => return piece_value(PieceType::Knight) + KNIGHT_PST[piece_square],
         PieceType::Rook => return piece_value(PieceType::Rook) + ROOK_PST[piece_square],
         PieceType::Queen => return piece_value(PieceType::Queen) + QUEEN_PST[piece_square],
-        PieceType::King =>  return piece_value(PieceType::King) + king_positional_eval(piece_square, is_endgame),
+        PieceType::King => {
+            return piece_value(PieceType::King) + king_positional_eval(piece_square, is_endgame)
+        }
     }
 }
 
@@ -165,10 +189,10 @@ fn piece_value(piece_type: PieceType) -> i32 {
         PieceType::Rook => 500,
         PieceType::Queen => 900,
         PieceType::King => 20_000,
-    }
+    };
 }
 fn order_moves(moves: Vec<Move>, game: &mut Game) -> Vec<Move> {
-    let mut ordered_moves: Vec<(Move, i32)> = Vec::new();  // Vector to store moves and their respective scores
+    let mut ordered_moves: Vec<(Move, i32)> = Vec::new(); // Vector to store moves and their respective scores
     let mut opponent_pawn_attacked_squares = 0u64;
     let opponent_colour = match game.active_colour {
         Colour::White => Colour::Black,
@@ -180,18 +204,28 @@ fn order_moves(moves: Vec<Move>, game: &mut Game) -> Vec<Move> {
             let from_square = bit_to_onebit_index(piece.bit);
             match piece.piece_type {
                 PieceType::Pawn => {
-                    opponent_pawn_attacked_squares |= generate_pawn_attacked_squares_including_own(from_square, opponent_colour);
-                },
-                _ => ()
+                    opponent_pawn_attacked_squares |=
+                        generate_pawn_attacked_squares_including_own(from_square, opponent_colour);
+                }
+                _ => (),
             }
         }
     }
 
     for unordered_move in moves.iter() {
         let mut move_score_guess = 0;
-        if let Some(moving_piece) = game.pieces.iter().find(|&p| p.bit == onebit_index_to_bit(unordered_move.from_square) && !p.taken) {
-            if let Some(captured_piece) = game.pieces.iter().find(|&p| p.bit == onebit_index_to_bit(unordered_move.to_square) && !p.taken) {
-                move_score_guess = 10 * piece_value(captured_piece.piece_type) - piece_value(moving_piece.piece_type);
+        if let Some(moving_piece) = game
+            .pieces
+            .iter()
+            .find(|&p| p.bit == onebit_index_to_bit(unordered_move.from_square) && !p.taken)
+        {
+            if let Some(captured_piece) = game
+                .pieces
+                .iter()
+                .find(|&p| p.bit == onebit_index_to_bit(unordered_move.to_square) && !p.taken)
+            {
+                move_score_guess = 10 * piece_value(captured_piece.piece_type)
+                    - piece_value(moving_piece.piece_type);
             }
 
             if let Some(promotion_piece_type) = unordered_move.promotion {
@@ -216,7 +250,7 @@ fn search(game: &mut Game, depth: u32, mut alpha: f64, beta: f64) -> (f64, Optio
     let fen_string = Game::write_FEN_without_move_counts(game);
     if let Some(position_count) = game.position_counts.get(&fen_string) {
         if *position_count >= 3 {
-            return (0f64, None)
+            return (0f64, None);
         }
     }
 
@@ -237,7 +271,7 @@ fn search(game: &mut Game, depth: u32, mut alpha: f64, beta: f64) -> (f64, Optio
         unmake_move(game, move_to_unmake);
 
         if evaluation >= beta {
-            return (beta, None)
+            return (beta, None);
         }
 
         if evaluation > alpha {
@@ -274,14 +308,14 @@ fn search_all_captures(game: &mut Game, mut alpha: f64, beta: f64) -> f64 {
             alpha = evaluation;
         }
     }
-    
+
     alpha
 }
 
 pub fn iterative_deepening_minimax(game: &mut Game, max_depth: u32) -> Option<Move> {
     let mut best_move: Option<Move> = None;
     let mut best_evaluation: f64;
-    
+
     for depth in 1..=max_depth {
         best_evaluation = f64::NEG_INFINITY;
         let (evaluation, best) = search(game, depth, f64::NEG_INFINITY, f64::INFINITY);
@@ -290,7 +324,7 @@ pub fn iterative_deepening_minimax(game: &mut Game, max_depth: u32) -> Option<Mo
             best_move = best;
             if evaluation == 100f64 {
                 // If a line results in checkmate for the active colour, stop searching
-                break
+                break;
             }
         }
     }

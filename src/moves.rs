@@ -1,14 +1,25 @@
-use std::collections::HashMap;
-use std::time::Instant;
-use crate::moves_bishop::{generate_bishop_attacked_squares_including_own, generate_bishop_moves, generate_bishop_pinned_piece, generate_bishop_pinned_ray};
 use crate::game::{CastlingRights, Game, PieceType, Square};
-use crate::utils::*;
-use crate::Colour;
-use crate::moves_king::{add_castle_moves, generate_king_attacked_squares_including_own, generate_legal_king_moves};
+use crate::moves_bishop::{
+    generate_bishop_attacked_squares_including_own, generate_bishop_moves,
+    generate_bishop_pinned_piece, generate_bishop_pinned_ray,
+};
+use crate::moves_king::{
+    add_castle_moves, generate_king_attacked_squares_including_own, generate_legal_king_moves,
+};
 use crate::moves_knight::{generate_knight_attacked_squares_including_own, generate_knight_moves};
 use crate::moves_pawn::{generate_pawn_attacked_squares_including_own, generate_pawn_moves};
-use crate::moves_queen::{generate_queen_attacked_squares_including_own, generate_queen_moves, generate_queen_pinned_piece, generate_queen_pinned_ray};
-use crate::moves_rook::{generate_rook_attacked_squares_including_own, generate_rook_moves, generate_rook_pinned_piece, generate_rook_pinned_ray};
+use crate::moves_queen::{
+    generate_queen_attacked_squares_including_own, generate_queen_moves,
+    generate_queen_pinned_piece, generate_queen_pinned_ray,
+};
+use crate::moves_rook::{
+    generate_rook_attacked_squares_including_own, generate_rook_moves, generate_rook_pinned_piece,
+    generate_rook_pinned_ray,
+};
+use crate::utils::*;
+use crate::Colour;
+use std::collections::HashMap;
+use std::time::Instant;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Move {
@@ -46,16 +57,16 @@ pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move>
                 }
                 PieceType::Knight => {
                     possible_moves.extend(generate_knight_moves(from_square, game));
-                },
+                }
                 PieceType::Bishop => {
                     possible_moves.extend(generate_bishop_moves(from_square, game));
-                },
+                }
                 PieceType::Rook => {
                     possible_moves.extend(generate_rook_moves(from_square, game));
-                },
-                PieceType::Queen =>  {
+                }
+                PieceType::Queen => {
                     possible_moves.extend(generate_queen_moves(from_square, game));
-                },
+                }
                 PieceType::King => {
                     possible_moves.extend(generate_legal_king_moves(from_square, game));
                 }
@@ -67,9 +78,13 @@ pub fn generate_pseudolegal_moves_without_castling(game: &mut Game) -> Vec<Move>
 }
 
 pub fn squares_attacked_by_colour_bitboard(game: &Game, attacking_colour: Colour) -> u64 {
-    let mut attacked_squares =  0u64;
+    let mut attacked_squares = 0u64;
     let mut king_bit = 0u64;
-    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+    if let Some(king) = game
+        .pieces
+        .iter()
+        .find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour)
+    {
         king_bit = king.bit;
     }
 
@@ -82,20 +97,30 @@ pub fn squares_attacked_by_colour_bitboard(game: &Game, attacking_colour: Colour
             let from_square = bit_to_onebit_index(piece.bit);
             match piece.piece_type {
                 PieceType::Pawn => {
-                    attacked_squares |= generate_pawn_attacked_squares_including_own(from_square, attacking_colour);
+                    attacked_squares |=
+                        generate_pawn_attacked_squares_including_own(from_square, attacking_colour);
                 }
                 PieceType::Knight => {
                     attacked_squares |= generate_knight_attacked_squares_including_own(from_square);
-                },
+                }
                 PieceType::Bishop => {
-                    attacked_squares |= generate_bishop_attacked_squares_including_own(from_square, occupied_excluding_king);
-                },
+                    attacked_squares |= generate_bishop_attacked_squares_including_own(
+                        from_square,
+                        occupied_excluding_king,
+                    );
+                }
                 PieceType::Rook => {
-                    attacked_squares |= generate_rook_attacked_squares_including_own(from_square, occupied_excluding_king);
-                },
-                PieceType::Queen =>  {
-                    attacked_squares |= generate_queen_attacked_squares_including_own(from_square, occupied_excluding_king);
-                },
+                    attacked_squares |= generate_rook_attacked_squares_including_own(
+                        from_square,
+                        occupied_excluding_king,
+                    );
+                }
+                PieceType::Queen => {
+                    attacked_squares |= generate_queen_attacked_squares_including_own(
+                        from_square,
+                        occupied_excluding_king,
+                    );
+                }
                 PieceType::King => {
                     attacked_squares |= generate_king_attacked_squares_including_own(from_square);
                 }
@@ -106,11 +131,14 @@ pub fn squares_attacked_by_colour_bitboard(game: &Game, attacking_colour: Colour
     attacked_squares
 }
 
-
 pub fn pieces_giving_check_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
-    let mut pieces_giving_check =  0u64;
+    let mut pieces_giving_check = 0u64;
     let mut king_bit = 0u64;
-    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+    if let Some(king) = game
+        .pieces
+        .iter()
+        .find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour)
+    {
         king_bit = king.bit;
     }
     let occupied = game.get_occupied_bitboard();
@@ -120,36 +148,41 @@ pub fn pieces_giving_check_bitboard(game: &Game, opponent_colour: Colour) -> u64
             let from_square = bit_to_onebit_index(piece.bit);
             match piece.piece_type {
                 PieceType::Pawn => {
-                    let pawn_attacks = generate_pawn_attacked_squares_including_own(from_square, opponent_colour);
+                    let pawn_attacks =
+                        generate_pawn_attacked_squares_including_own(from_square, opponent_colour);
                     if pawn_attacks & king_bit != 0 {
                         pieces_giving_check |= piece.bit;
-                    }                
-                },
+                    }
+                }
                 PieceType::Knight => {
-                    let knight_attacks = generate_knight_attacked_squares_including_own(from_square);
+                    let knight_attacks =
+                        generate_knight_attacked_squares_including_own(from_square);
                     if knight_attacks & king_bit != 0 {
                         pieces_giving_check |= piece.bit;
                     }
-                },
+                }
                 PieceType::Bishop => {
-                    let bishop_attacks = generate_bishop_attacked_squares_including_own(from_square, occupied);
+                    let bishop_attacks =
+                        generate_bishop_attacked_squares_including_own(from_square, occupied);
                     if bishop_attacks & king_bit != 0 {
                         pieces_giving_check |= piece.bit;
                     }
-                },
+                }
                 PieceType::Rook => {
-                    let rook_attacks = generate_rook_attacked_squares_including_own(from_square, occupied);
+                    let rook_attacks =
+                        generate_rook_attacked_squares_including_own(from_square, occupied);
                     if rook_attacks & king_bit != 0 {
                         pieces_giving_check |= piece.bit;
                     }
-                },
-                PieceType::Queen =>  {
-                    let queen_attacks = generate_queen_attacked_squares_including_own(from_square, occupied);
+                }
+                PieceType::Queen => {
+                    let queen_attacks =
+                        generate_queen_attacked_squares_including_own(from_square, occupied);
                     if queen_attacks & king_bit != 0 {
                         pieces_giving_check |= piece.bit;
                     }
-                },
-                _ => ()
+                }
+                _ => (),
             }
         }
     }
@@ -160,7 +193,11 @@ pub fn pieces_giving_check_bitboard(game: &Game, opponent_colour: Colour) -> u64
 pub fn pinned_ray_bitboard(game: &Game, opponent_colour: Colour, pinned_piece_bit: u64) -> u64 {
     let mut pinned_ray_bitboard = 0u64;
     let mut king_bit = 0u64;
-    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+    if let Some(king) = game
+        .pieces
+        .iter()
+        .find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour)
+    {
         king_bit = king.bit;
     }
 
@@ -168,15 +205,18 @@ pub fn pinned_ray_bitboard(game: &Game, opponent_colour: Colour, pinned_piece_bi
         if piece.colour == opponent_colour && piece.taken == false {
             match piece.piece_type {
                 PieceType::Bishop => {
-                    pinned_ray_bitboard |= generate_bishop_pinned_ray(pinned_piece_bit, game, king_bit);
-                },
+                    pinned_ray_bitboard |=
+                        generate_bishop_pinned_ray(pinned_piece_bit, game, king_bit);
+                }
                 PieceType::Rook => {
-                    pinned_ray_bitboard |= generate_rook_pinned_ray(pinned_piece_bit, game, king_bit);
-                },
-                PieceType::Queen =>  {
-                    pinned_ray_bitboard |= generate_queen_pinned_ray(pinned_piece_bit, game, king_bit);
-                },
-                _ => ()
+                    pinned_ray_bitboard |=
+                        generate_rook_pinned_ray(pinned_piece_bit, game, king_bit);
+                }
+                PieceType::Queen => {
+                    pinned_ray_bitboard |=
+                        generate_queen_pinned_ray(pinned_piece_bit, game, king_bit);
+                }
+                _ => (),
             }
         }
     }
@@ -185,9 +225,13 @@ pub fn pinned_ray_bitboard(game: &Game, opponent_colour: Colour, pinned_piece_bi
 }
 
 pub fn pinned_pieces_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
-    let mut pinned_pieces_bitboard =  0u64;
+    let mut pinned_pieces_bitboard = 0u64;
     let mut king_bit = 0u64;
-    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+    if let Some(king) = game
+        .pieces
+        .iter()
+        .find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour)
+    {
         king_bit = king.bit;
     }
 
@@ -196,15 +240,18 @@ pub fn pinned_pieces_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
             let from_square = bit_to_onebit_index(piece.bit);
             match piece.piece_type {
                 PieceType::Bishop => {
-                    pinned_pieces_bitboard |= generate_bishop_pinned_piece(from_square, game, king_bit);
-                },
+                    pinned_pieces_bitboard |=
+                        generate_bishop_pinned_piece(from_square, game, king_bit);
+                }
                 PieceType::Rook => {
-                    pinned_pieces_bitboard |= generate_rook_pinned_piece(from_square, game, king_bit);
-                },
-                PieceType::Queen =>  {
-                    pinned_pieces_bitboard |= generate_queen_pinned_piece(from_square, game, king_bit);
-                },
-                _ => ()
+                    pinned_pieces_bitboard |=
+                        generate_rook_pinned_piece(from_square, game, king_bit);
+                }
+                PieceType::Queen => {
+                    pinned_pieces_bitboard |=
+                        generate_queen_pinned_piece(from_square, game, king_bit);
+                }
+                _ => (),
             }
         }
     }
@@ -212,11 +259,14 @@ pub fn pinned_pieces_bitboard(game: &Game, opponent_colour: Colour) -> u64 {
     pinned_pieces_bitboard
 }
 
-
 fn generate_pseudolegal_moves(game: &mut Game) -> Vec<Move> {
     let mut possible_moves = generate_pseudolegal_moves_without_castling(game);
 
-    if let Some(king) = game.pieces.iter().find(|&p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+    if let Some(king) = game
+        .pieces
+        .iter()
+        .find(|&p| p.piece_type == PieceType::King && p.colour == game.active_colour)
+    {
         let king_square = bit_to_onebit_index(king.bit);
         possible_moves = add_castle_moves(king_square, possible_moves, game);
     }
@@ -233,7 +283,11 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
     // king moves are legal already, make sure other pieces don't move king INTO check
     let king_square;
     let mut king_bit = 0;
-    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour) {
+    if let Some(king) = game
+        .pieces
+        .iter()
+        .find(|p| p.piece_type == PieceType::King && p.colour == game.active_colour)
+    {
         king_bit = king.bit;
     }
     king_square = bit_to_onebit_index(king_bit);
@@ -251,8 +305,7 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
 
     for possible_move in possible_moves {
         let mut capture_mask = u64::MAX;
-        let mut push_mask    = u64::MAX;
-    
+        let mut push_mask = u64::MAX;
 
         if possible_move.from_square == king_square {
             // 1: king moves (handled by king move gen)
@@ -260,7 +313,6 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
         } else {
             let piece_bit = onebit_index_to_bit(possible_move.from_square);
             if piece_bit & pinned_pieces_bitboard != 0 {
-                
                 // print_bitboard(pinned_pieces_bitboard);
                 // piece is pinned
                 // make sure to_square is along pin line
@@ -274,38 +326,55 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
                 // in check
                 if num_pieces_giving_check > 1 {
                     //double check
-                    continue // only king moves valid if double check
+                    continue; // only king moves valid if double check
                 } else {
                     // single check and piece to move is not king
                     capture_mask &= pieces_giving_check;
-                    if let Some(checking_piece) = game.pieces.iter().find(|p| p.bit == pieces_giving_check && !p.taken) {
+                    if let Some(checking_piece) = game
+                        .pieces
+                        .iter()
+                        .find(|p| p.bit == pieces_giving_check && !p.taken)
+                    {
                         match checking_piece.piece_type {
                             // If the piece giving check is a slider, we can evade check by blocking it
                             PieceType::Bishop => {
-                                push_mask &= generate_bishop_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
-                            },
+                                push_mask &= generate_bishop_pinned_piece(
+                                    bit_to_onebit_index(checking_piece.bit),
+                                    game,
+                                    king_bit,
+                                )
+                            }
                             PieceType::Rook => {
-                                push_mask &= generate_rook_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
-                            },
+                                push_mask &= generate_rook_pinned_piece(
+                                    bit_to_onebit_index(checking_piece.bit),
+                                    game,
+                                    king_bit,
+                                )
+                            }
                             PieceType::Queen => {
-                                push_mask &= generate_queen_pinned_piece(bit_to_onebit_index(checking_piece.bit), game, king_bit)
-                            },
+                                push_mask &= generate_queen_pinned_piece(
+                                    bit_to_onebit_index(checking_piece.bit),
+                                    game,
+                                    king_bit,
+                                )
+                            }
                             // if the piece is not a slider, we can only evade check by capturing
-                            _ => { push_mask = 0u64 }
+                            _ => push_mask = 0u64,
                         }
                     }
                     // print_bitboard(capture_mask);
                     // print_bitboard(push_mask);
                 }
-            }   
+            }
 
             if let Some(capture_square) = possible_move.capture_square {
-                if onebit_index_to_bit(capture_square) & capture_mask != 0 ||
-                onebit_index_to_bit(possible_move.to_square) & push_mask != 0 {
+                if onebit_index_to_bit(capture_square) & capture_mask != 0
+                    || onebit_index_to_bit(possible_move.to_square) & push_mask != 0
+                {
                     new_possible_moves.push(possible_move);
                 }
             } else if onebit_index_to_bit(possible_move.to_square) & push_mask != 0 {
-                new_possible_moves.push(possible_move);     
+                new_possible_moves.push(possible_move);
             }
         }
     }
@@ -329,15 +398,18 @@ pub fn make_move(game: &mut Game, move_to_make: Move) -> MoveToUnmake {
     let start_bit = onebit_index_to_bit(move_to_make.from_square);
     let end_bit = onebit_index_to_bit(move_to_make.to_square);
 
-    if let Some(start_piece_index) = game.pieces.iter().position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour) {
-
-
-        let move_to_unmake = make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
+    if let Some(start_piece_index) = game
+        .pieces
+        .iter()
+        .position(|p| p.taken == false && p.bit == start_bit && p.colour == game.active_colour)
+    {
+        let move_to_unmake =
+            make_non_pawn_promotion_move(game, move_to_make, start_piece_index, end_bit);
         // Promote first so check will be calculated if promoted piece puts king in check
-        if let Some(promotion_piece)  = move_to_make.promotion {
+        if let Some(promotion_piece) = move_to_make.promotion {
             game.pieces[start_piece_index].piece_type = promotion_piece;
         };
-        return move_to_unmake
+        return move_to_unmake;
     }
     panic!("No piece found at this move's start index")
 }
@@ -347,7 +419,11 @@ pub fn unmake_move(game: &mut Game, move_to_unmake: MoveToUnmake) {
     let end_bit = onebit_index_to_bit(move_to_unmake.to_square);
 
     // Locate the moved piece
-    if let Some(piece_index) = game.pieces.iter().position(|p| !p.taken && p.bit == end_bit && p.colour != game.active_colour) {
+    if let Some(piece_index) = game
+        .pieces
+        .iter()
+        .position(|p| !p.taken && p.bit == end_bit && p.colour != game.active_colour)
+    {
         let piece = &mut game.pieces[piece_index];
 
         // Handle promotion revert
@@ -361,20 +437,17 @@ pub fn unmake_move(game: &mut Game, move_to_unmake: MoveToUnmake) {
         game.squares[move_to_unmake.to_square] = Square::Empty;
 
         // Restore captured piece, if any
-        if let (Some(captured_piece_index), Some(captured_piece_square)) =
-            (move_to_unmake.captured_piece_index, move_to_unmake.captured_piece_square)
-        {
+        if let (Some(captured_piece_index), Some(captured_piece_square)) = (
+            move_to_unmake.captured_piece_index,
+            move_to_unmake.captured_piece_square,
+        ) {
             let captured_piece = &mut game.pieces[captured_piece_index];
             captured_piece.taken = false;
             game.squares[captured_piece_square] = Square::Occupied(captured_piece_index);
         }
 
         // Restore castled rook, if any
-        if let (
-            Some(rook_index),
-            Some(rook_from_square),
-            Some(rook_to_square),
-        ) = (
+        if let (Some(rook_index), Some(rook_from_square), Some(rook_to_square)) = (
             move_to_unmake.previous_castled_rook_piece_index,
             move_to_unmake.previous_castled_rook_piece_from_square,
             move_to_unmake.previous_castled_rook_piece_to_square,
@@ -405,8 +478,12 @@ pub fn unmake_move(game: &mut Game, move_to_unmake: MoveToUnmake) {
     }
 }
 
-
-fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece_index: usize, end_bit: u64) -> MoveToUnmake {
+fn make_non_pawn_promotion_move(
+    game: &mut Game,
+    move_to_make: Move,
+    start_piece_index: usize,
+    end_bit: u64,
+) -> MoveToUnmake {
     let mut move_to_unmake = MoveToUnmake {
         from_square: move_to_make.from_square,
         to_square: move_to_make.to_square,
@@ -432,11 +509,11 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
             Colour::White => {
                 game.castling_rights.remove(CastlingRights::WHITEKINGSIDE);
                 game.castling_rights.remove(CastlingRights::WHITEQUEENSIDE);
-            },
+            }
             Colour::Black => {
                 game.castling_rights.remove(CastlingRights::BLACKKINGSIDE);
                 game.castling_rights.remove(CastlingRights::BLACKQUEENSIDE);
-            },
+            }
         }
 
         if move_distance == 2 {
@@ -474,7 +551,8 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
 
     // Handle En Passant Capture
     if let Some(en_passant_bit) = game.en_passant {
-        if end_bit == en_passant_bit && game.pieces[start_piece_index].piece_type == PieceType::Pawn {
+        if end_bit == en_passant_bit && game.pieces[start_piece_index].piece_type == PieceType::Pawn
+        {
             let captured_square = if game.active_colour == Colour::White {
                 move_to_make.to_square - 8
             } else {
@@ -491,11 +569,16 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     }
 
     // Handle Standard Capture
-    if let Some(target_index) = game.pieces.iter().position(|p| !p.taken && p.bit == end_bit) {
+    if let Some(target_index) = game
+        .pieces
+        .iter()
+        .position(|p| !p.taken && p.bit == end_bit)
+    {
         game.pieces[target_index].taken = true;
         game.squares[move_to_make.to_square] = Square::Occupied(target_index);
         move_to_unmake.captured_piece_index = Some(target_index);
-        move_to_unmake.captured_piece_square = Some(bit_to_onebit_index(game.pieces[target_index].bit));
+        move_to_unmake.captured_piece_square =
+            Some(bit_to_onebit_index(game.pieces[target_index].bit));
 
         // Remove captured rook's castling rights
         if game.pieces[target_index].piece_type == PieceType::Rook {
@@ -515,11 +598,14 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     game.pieces[start_piece_index].bit = end_bit;
 
     // Set En Passant if Pawn moved two squares
-    game.en_passant = if game.pieces[start_piece_index].piece_type == PieceType::Pawn && move_distance == 16 {
-        Some(onebit_index_to_bit((move_to_make.from_square + move_to_make.to_square) / 2))
-    } else {
-        None
-    };
+    game.en_passant =
+        if game.pieces[start_piece_index].piece_type == PieceType::Pawn && move_distance == 16 {
+            Some(onebit_index_to_bit(
+                (move_to_make.from_square + move_to_make.to_square) / 2,
+            ))
+        } else {
+            None
+        };
 
     // Check if the opponent's king is in check
     let opponent_colour = match game.active_colour {
@@ -527,8 +613,13 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
         Colour::Black => Colour::White,
     };
 
-    if let Some(king) = game.pieces.iter().find(|p| p.piece_type == PieceType::King && p.colour == opponent_colour) {
-        let squares_attacked_by_active_colour = squares_attacked_by_colour_bitboard(game, game.active_colour);
+    if let Some(king) = game
+        .pieces
+        .iter()
+        .find(|p| p.piece_type == PieceType::King && p.colour == opponent_colour)
+    {
+        let squares_attacked_by_active_colour =
+            squares_attacked_by_colour_bitboard(game, game.active_colour);
 
         game.colour_in_check = if squares_attacked_by_active_colour & king.bit != 0 {
             Some(opponent_colour)
@@ -543,7 +634,6 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     }
     game.active_colour = opponent_colour;
 
-
     // Update position counts
     let fen_string = Game::write_FEN_without_move_counts(game);
     *game.position_counts.entry(fen_string.clone()).or_insert(0) += 1;
@@ -551,7 +641,12 @@ fn make_non_pawn_promotion_move(game: &mut Game, move_to_make: Move, start_piece
     move_to_unmake
 }
 
-pub fn calculate_sliding_attacked_squares_excluding_own(attack_mask: u64, occupied: u64, direction: usize, own_pieces: u64) -> u64 {
+pub fn calculate_sliding_attacked_squares_excluding_own(
+    attack_mask: u64,
+    occupied: u64,
+    direction: usize,
+    own_pieces: u64,
+) -> u64 {
     let blockers = attack_mask & occupied;
     let mut truncated_mask = attack_mask;
 
@@ -568,7 +663,7 @@ pub fn calculate_sliding_attacked_squares_excluding_own(attack_mask: u64, occupi
                     // Friendly piece, exclude
                     truncated_mask &= blocker_bit - 1;
                 }
-            },
+            }
             2 | 3 => {
                 // South/West (orthogonal), South-East/South-West (diagonal)t
                 let first_blocker = 63 - blockers.leading_zeros() as usize;
@@ -580,14 +675,18 @@ pub fn calculate_sliding_attacked_squares_excluding_own(attack_mask: u64, occupi
                     // Friendly piece, exclude
                     truncated_mask &= !blocker_bit & !(blocker_bit - 1);
                 }
-            },
+            }
             _ => panic!("Invalid direction"),
         };
     }
     truncated_mask
 }
 
-pub fn calculate_sliding_attacked_squares_including_own(attack_mask: u64, occupied: u64, direction: usize) -> u64 {
+pub fn calculate_sliding_attacked_squares_including_own(
+    attack_mask: u64,
+    occupied: u64,
+    direction: usize,
+) -> u64 {
     let blockers = attack_mask & occupied;
     let mut truncated_mask = attack_mask;
 
@@ -598,13 +697,13 @@ pub fn calculate_sliding_attacked_squares_including_own(attack_mask: u64, occupi
                 let first_blocker = blockers.trailing_zeros() as usize;
                 let blocker_bit = 1u64 << first_blocker;
                 truncated_mask &= blocker_bit | (blocker_bit - 1);
-            },
+            }
             2 | 3 => {
                 // South/West (orthogonal), South-East/South-West (diagonal)t
                 let first_blocker = 63 - blockers.leading_zeros() as usize;
                 let blocker_bit = 1u64 << first_blocker;
                 truncated_mask &= !(blocker_bit - 1);
-            },
+            }
             _ => panic!("Invalid direction"),
         };
     }

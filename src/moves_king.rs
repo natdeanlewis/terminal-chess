@@ -1,7 +1,7 @@
-use lazy_static::lazy_static;
-use crate::utils::{bitboard_to_indices, onebit_index_to_bit};
 use crate::game::{CastlingRights, Colour, Game, Square};
 use crate::moves::{squares_attacked_by_colour_bitboard, Move};
+use crate::utils::{bitboard_to_indices, onebit_index_to_bit};
+use lazy_static::lazy_static;
 
 lazy_static! {
     static ref KING_MOVES: [u64; 64] = precompute_king_move_bitboards();
@@ -44,7 +44,6 @@ pub fn generate_king_attacked_squares_excluding_own(from_square: usize, game: &G
     valid_moves
 }
 
-
 fn precompute_king_move_bitboards() -> [u64; 64] {
     let mut king_moves = [0u64; 64];
 
@@ -55,8 +54,14 @@ fn precompute_king_move_bitboards() -> [u64; 64] {
         let mut moves = 0u64;
 
         for (dr, df) in &[
-            (-1, 0), (1, 0), (0, -1), (0, 1), // Orthogonal
-            (-1, -1), (-1, 1), (1, -1), (1, 1), // Diagonal
+            (-1, 0),
+            (1, 0),
+            (0, -1),
+            (0, 1), // Orthogonal
+            (-1, -1),
+            (-1, 1),
+            (1, -1),
+            (1, 1), // Diagonal
         ] {
             let new_rank = rank as isize + dr;
             let new_file = file as isize + df;
@@ -73,18 +78,25 @@ fn precompute_king_move_bitboards() -> [u64; 64] {
     king_moves
 }
 
-
-pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game: &Game) -> Vec<Move> {
+pub fn add_castle_moves(
+    from_square: usize,
+    mut possible_moves: Vec<Move>,
+    game: &Game,
+) -> Vec<Move> {
     let opponent_colour = match game.active_colour {
         Colour::Black => Colour::White,
         Colour::White => Colour::Black,
     };
 
-    let squares_attacked_by_opponent_bitboard = squares_attacked_by_colour_bitboard(game, opponent_colour);
+    let squares_attacked_by_opponent_bitboard =
+        squares_attacked_by_colour_bitboard(game, opponent_colour);
 
     if game.active_colour == Colour::White {
         if game.castling_rights.contains(CastlingRights::WHITEKINGSIDE) {
-            if (5..7).all(|i| game.squares[i] == Square::Empty) && (4..7).all(|i| onebit_index_to_bit(i) & squares_attacked_by_opponent_bitboard == 0) {
+            if (5..7).all(|i| game.squares[i] == Square::Empty)
+                && (4..7)
+                    .all(|i| onebit_index_to_bit(i) & squares_attacked_by_opponent_bitboard == 0)
+            {
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square + 2,
@@ -93,8 +105,14 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
                 });
             }
         }
-        if game.castling_rights.contains(CastlingRights::WHITEQUEENSIDE) {
-            if (1..4).all(|i| game.squares[i] == Square::Empty) && (2..5).all(|i| onebit_index_to_bit(i) & squares_attacked_by_opponent_bitboard == 0) {
+        if game
+            .castling_rights
+            .contains(CastlingRights::WHITEQUEENSIDE)
+        {
+            if (1..4).all(|i| game.squares[i] == Square::Empty)
+                && (2..5)
+                    .all(|i| onebit_index_to_bit(i) & squares_attacked_by_opponent_bitboard == 0)
+            {
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square - 2,
@@ -105,16 +123,26 @@ pub fn add_castle_moves(from_square: usize, mut possible_moves: Vec<Move>, game:
         }
     } else {
         if game.castling_rights.contains(CastlingRights::BLACKKINGSIDE) {
-            if (61..63).all(|i| game.squares[i] == Square::Empty) && (60..63).all(|i| onebit_index_to_bit(i) & squares_attacked_by_opponent_bitboard == 0) {
+            if (61..63).all(|i| game.squares[i] == Square::Empty)
+                && (60..63)
+                    .all(|i| onebit_index_to_bit(i) & squares_attacked_by_opponent_bitboard == 0)
+            {
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square + 2,
                     promotion: None,
                     capture_square: None,
                 });
-            }        }
-        if game.castling_rights.contains(CastlingRights::BLACKQUEENSIDE) {
-            if (57..60).all(|i| game.squares[i] == Square::Empty) && (58..61).all(|i| onebit_index_to_bit(i) & squares_attacked_by_opponent_bitboard == 0) {
+            }
+        }
+        if game
+            .castling_rights
+            .contains(CastlingRights::BLACKQUEENSIDE)
+        {
+            if (57..60).all(|i| game.squares[i] == Square::Empty)
+                && (58..61)
+                    .all(|i| onebit_index_to_bit(i) & squares_attacked_by_opponent_bitboard == 0)
+            {
                 possible_moves.push(Move {
                     from_square: from_square,
                     to_square: from_square - 2,

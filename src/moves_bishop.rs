@@ -1,9 +1,11 @@
+use crate::bit_to_onebit_index;
+use crate::game::Game;
+use crate::moves::{
+    calculate_sliding_attacked_squares_excluding_own,
+    calculate_sliding_attacked_squares_including_own, Move,
+};
+use crate::utils::bitboard_to_indices;
 use lazy_static::lazy_static;
-use crate::game::{Game};
-use crate::moves::{calculate_sliding_attacked_squares_including_own, calculate_sliding_attacked_squares_excluding_own, Move};
-use crate::{bit_to_onebit_index};
-use crate::utils::{bitboard_to_indices};
-
 
 lazy_static! {
     static ref BISHOP_ATTACK_MASKS: [[u64; 64]; 4] = precompute_bishop_attack_masks();
@@ -35,10 +37,10 @@ pub fn generate_bishop_pinned_ray(pinned_piece_bit: u64, game: &Game, king_bit: 
             direction,
         );
         if pinned_piece_bit & moves_in_direction != 0 {
-            return moves_in_direction
+            return moves_in_direction;
         }
     }
-    return 0u64
+    return 0u64;
 }
 
 pub fn generate_bishop_pinned_piece(from_square: usize, game: &Game, king_bit: u64) -> u64 {
@@ -54,7 +56,8 @@ pub fn generate_bishop_pinned_piece(from_square: usize, game: &Game, king_bit: u
         // get opposite direction bishop attacks from king
         // 0 <-> 2 1 <-> 3
         let opposite_direction = (direction + 2) % 4;
-        let opposite_direction_attack_mask = BISHOP_ATTACK_MASKS[opposite_direction][bit_to_onebit_index(king_bit)];
+        let opposite_direction_attack_mask =
+            BISHOP_ATTACK_MASKS[opposite_direction][bit_to_onebit_index(king_bit)];
         let moves_in_opposite_direction = calculate_sliding_attacked_squares_including_own(
             opposite_direction_attack_mask,
             occupied,
@@ -63,10 +66,10 @@ pub fn generate_bishop_pinned_piece(from_square: usize, game: &Game, king_bit: u
 
         let overlap = moves_in_direction & moves_in_opposite_direction;
         if overlap != 0 {
-            return overlap
+            return overlap;
         }
     }
-    return 0u64
+    return 0u64;
 }
 
 pub fn generate_bishop_attacked_squares_excluding_own(from_square: usize, game: &Game) -> u64 {
@@ -88,21 +91,19 @@ pub fn generate_bishop_attacked_squares_excluding_own(from_square: usize, game: 
     attacked_squares
 }
 
-
-
 pub fn generate_bishop_moves(from_square: usize, game: &Game) -> Vec<Move> {
     let mut possible_moves = Vec::new();
 
     let valid_moves = generate_bishop_attacked_squares_excluding_own(from_square, game);
 
-        for target_square in bitboard_to_indices(valid_moves) {
-            possible_moves.push(Move {
-                from_square,
-                to_square: target_square,
-                promotion: None,
-                capture_square: Some(target_square),
-            });
-        }
+    for target_square in bitboard_to_indices(valid_moves) {
+        possible_moves.push(Move {
+            from_square,
+            to_square: target_square,
+            promotion: None,
+            capture_square: Some(target_square),
+        });
+    }
 
     possible_moves
 }
