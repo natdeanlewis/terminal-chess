@@ -1,14 +1,48 @@
 # Rust Chess Engine with Terminal UI
 
-Three modes:
+A high-performance chess engine written in **Rust**, featuring an interactive terminal-based interface.
+
+Three game modes:
 2-player, 1-player (user vs computer) or 0-player (engine plays itself):
 
-![demo.gif](demo.gif)
+## Technology Stack
 
-To build: `cargo build --release`
+* **Language:** Rust
+* **Interface:** Terminal / CLI
+* **Build System:** Cargo
 
-To run: `cargo run --release`
+---
 
-To test: `cargo test --release`
+## Building
 
-To test with debugging output:`cargo test --release -- --nocapture`
+Compile an optimized release build:
+
+```bash
+cargo build --release
+```
+
+---
+
+## Running
+
+Launch the application:
+
+```bash
+cargo run --release
+```
+
+---
+
+## Testing
+
+Run the full test suite:
+
+```bash
+cargo test --release
+```
+
+Run tests with debugging and console output enabled:
+
+```bash
+cargo test --release -- --nocapture
+```
