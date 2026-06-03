@@ -312,8 +312,6 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
         } else {
             let piece_bit = onebit_index_to_bit(possible_move.from_square);
             if piece_bit & pinned_pieces_bitboard != 0 {
-                // print_bitboard(pinned_pieces_bitboard);
-                // piece is pinned
                 // make sure to_square is along pin line
                 let pinned_ray_bitboard = pinned_ray_bitboard(game, opponent_colour, piece_bit);
 
@@ -361,8 +359,6 @@ pub fn generate_moves(game: &mut Game) -> Vec<Move> {
                             _ => push_mask = 0u64,
                         }
                     }
-                    // print_bitboard(capture_mask);
-                    // print_bitboard(push_mask);
                 }
             }
 
@@ -785,10 +781,6 @@ fn perft_func(depth: u32, game: &mut Game) -> u32 {
     for n_move in n_moves.iter() {
         let move_to_unmake = make_move(game, *n_move);
         let nodes: u32 = perft_func(depth - 1, game);
-        // let depth_to_print = 3;
-        // if depth == depth_to_print {
-        //     println!("{:?}{:?}: {}", onebit_index_to_coords(n_move.from_square).to_string(), onebit_index_to_coords(n_move.to_square).to_string(), nodes);
-        // }
         total += nodes;
         unmake_move(game, move_to_unmake);
     }
