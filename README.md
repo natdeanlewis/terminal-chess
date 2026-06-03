@@ -5,6 +5,7 @@ A high-performance chess engine written in **Rust**, featuring an interactive te
 Three game modes:
 2-player, 1-player (user vs computer) or 0-player (engine plays itself):
 
+![demo.gif](demo.gif)
 ## Technology Stack
 
 * **Language:** Rust
